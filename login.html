@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .login-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        h2 {
+            margin: 0 0 20px;
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #1976D2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1565C0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-form">
+        <h2>系统登录</h2>
+        <form onsubmit="return login(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">登录</button>
+        </form>
+    </div>
+
+    <script>
+        function login(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // 修改用户名和密码验证
+            if (username === '皇权' && password === 'qq900910') {
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('username', username); // 保存用户名
+                window.location.href = 'index.html';
+            } else {
+                alert('用户名或密码错误');
+            }
+        }
+
+        // 检查是否已登录
+        if (localStorage.getItem('isLoggedIn') === 'true') {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html> 
