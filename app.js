@@ -1062,11 +1062,10 @@ function editRecord(orderId) {
     document.getElementById('createOrderForm').dataset.editId = orderId;
 }
 
-// 修改保存订单函数，支持编辑功能
-function saveOrder() {
+// 修改保存订单函数
+async function saveOrder() {
     const orderForm = document.getElementById('createOrderForm');
     const editId = orderForm.dataset.editId;
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
     const orderId = editId || Date.now().toString();
     
     const order = {
@@ -1080,22 +1079,23 @@ function saveOrder() {
         size: document.getElementById('orderSize').value,
         quantity: document.getElementById('orderQuantity').value,
         remark: document.getElementById('orderRemark').value,
-        timestamp: editId ? orderData[orderId].timestamp : new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        username: localStorage.getItem('username')
     };
     
-    orderData[orderId] = order;
-    
     try {
-        localStorage.setItem('orderData', JSON.stringify(orderData));
+        // 使用 rtdb 而不是 db
+        await rtdb.ref(`orders/${orderId}`).set(order);
+        
         // 清空表单
         document.getElementById('orderCustomer').value = '';
         document.getElementById('orderSize').value = '';
         document.getElementById('orderQuantity').value = '1';
         document.getElementById('orderRemark').value = '';
+        
         // 清除编辑标记
         delete orderForm.dataset.editId;
-        // 更新最近订单显示
-        updateRecentOrders();
+        
         // 聚焦到客户输入框
         document.getElementById('orderCustomer').focus();
     } catch (error) {
@@ -1786,7 +1786,7 @@ function exportSupplierStats() {
             })
             .map(stat => ({
                 '供应商': stat.supplier,
-                '总成本': Math.round(stat.totalCost),  // 改为四舍五入取整
+                '总���本': Math.round(stat.totalCost),  // 改为四舍五入取整
                 '总数量': stat.totalQuantity,
                 '总金额': Math.round(stat.totalAmount), // 改为四舍五入取整
                 '毛利': Math.round(stat.grossProfit),   // 改为四舍五入取整
@@ -1937,7 +1937,7 @@ function initializeFolderInput() {
 }
 
 // 添加一个不显示价格的客户列表
-const hidePriceCustomers = ['客户A', '客户B', '客户C']; // 可以根据需要添加客户名称
+const hidePriceCustomers = ['客户A', '客户B', '客户C']; // 可以根据需���添加客户名称
 
 // 修改生成标签的HTML内容
 function generateLabelHTML(labelData) {
@@ -1974,7 +1974,7 @@ function generateLabelHTML(labelData) {
                     height: 55mm;                         /* 调整高度以适应10行 */
                 }
                 .label-image {
-                    width: 50mm;                         /* 调整图片宽度 */
+                    width: 50mm;                         /* ��整图片宽度 */
                     height: 50mm;                        /* 调整图片高度 */
                     display: flex;
                     align-items: center;
@@ -2022,7 +2022,7 @@ function generateLabelHTML(labelData) {
                     .no-print {
                         display: none;
                     }
-                    /* 每50个标签后强制分页 */
+                    /* 每50个标签���强制分页 */
                     .label:nth-child(50) {
                         page-break-after: always;
                     }
@@ -2532,30 +2532,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 修改最近订单显示函数
 function updateRecentOrders() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const recentOrdersList = document.getElementById('recentOrdersList');
+    const username = localStorage.getItem('username');
     
-    // 获取最近的10个订单
-    const recentOrders = Object.values(orderData)
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .slice(0, 10);
+    // 监听订单数据变化
+    rtdb.ref('orders')
+        .orderByChild('timestamp')
+        .limitToLast(10)
+        .on('value', (snapshot) => {
+            const orders = [];
+            snapshot.forEach((child) => {
+                const order = child.val();
+                if (order.username === username) {
+                    orders.unshift(order);
+                }
+            });
 
-    recentOrdersList.innerHTML = recentOrders.map(order => `
-        <div class="recent-order-item">
-            <div class="order-main-info">
-                <span class="order-customer" contenteditable="true" onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
-                <span class="order-code">${order.code}</span>
-            </div>
-            <div class="order-second-line">
-                <span class="order-size" contenteditable="true" onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
-                <div class="order-quantity-price">
-                    <span>${order.quantity}件</span>
-                    <span class="order-price" contenteditable="true" onblur="updateOrderField('${order.id}', 'price', this.textContent)">¥${order.price || '-'}</span>
+            const recentOrdersList = document.getElementById('recentOrdersList');
+            recentOrdersList.innerHTML = orders.map(order => `
+                <div class="recent-order-item">
+                    <div class="order-main-info">
+                        <span class="order-customer" contenteditable="true" onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
+                        <span class="order-code">${order.code}</span>
+                    </div>
+                    <div class="order-second-line">
+                        <span class="order-size" contenteditable="true" onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
+                        <div class="order-quantity-price">
+                            <span>${order.quantity}件</span>
+                            <span class="order-price" contenteditable="true" onblur="updateOrderField('${order.id}', 'price', this.textContent)">${order.price || '-'}</span>
+                        </div>
+                        <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                    </div>
                 </div>
-                <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
-            </div>
-        </div>
-    `).join('');
+            `).join('');
+        });
 }
 
 // 添加点击事件监听器
@@ -2691,143 +2700,5 @@ function openAllOrders() {
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 100);
-}
- 
-// 保存订单到云端
-async function saveOrder() {
-    const orderForm = document.getElementById('createOrderForm');
-    const editId = orderForm.dataset.editId;
-    const orderId = editId || Date.now().toString();
-    
-    const order = {
-        id: orderId,
-        code: document.getElementById('orderCode').value,
-        name: document.getElementById('orderName').value,
-        supplier: document.getElementById('orderSupplier').value,
-        cost: document.getElementById('orderCost').value,
-        price: document.getElementById('orderPrice').value,
-        customer: document.getElementById('orderCustomer').value,
-        size: document.getElementById('orderSize').value,
-        quantity: document.getElementById('orderQuantity').value,
-        remark: document.getElementById('orderRemark').value,
-        timestamp: new Date().toISOString(),
-        username: localStorage.getItem('username') // 添加用户标识
-    };
-    
-    try {
-        // 保存到 Firestore
-        await db.collection('orders').doc(orderId).set(order);
-        
-        // 清空表单
-        document.getElementById('orderCustomer').value = '';
-        document.getElementById('orderSize').value = '';
-        document.getElementById('orderQuantity').value = '1';
-        document.getElementById('orderRemark').value = '';
-        
-        // 清除编辑标记
-        delete orderForm.dataset.editId;
-        
-        // 更新显示
-        await updateRecentOrders();
-        
-        // 聚焦到客户输入框
-        document.getElementById('orderCustomer').focus();
-    } catch (error) {
-        console.error('保存订单失败:', error);
-        alert('保存订单失败: ' + error.message);
-    }
-}
-
-// 从云端获取最近订单
-async function updateRecentOrders() {
-    try {
-        const username = localStorage.getItem('username');
-        const snapshot = await db.collection('orders')
-            .where('username', '==', username)
-            .orderBy('timestamp', 'desc')
-            .limit(10)
-            .get();
-
-        const recentOrders = [];
-        snapshot.forEach(doc => {
-            recentOrders.push({ id: doc.id, ...doc.data() });
-        });
-
-        const recentOrdersList = document.getElementById('recentOrdersList');
-        recentOrdersList.innerHTML = recentOrders.map(order => `
-            <div class="recent-order-item">
-                <div class="order-main-info">
-                    <span class="order-customer" contenteditable="true" onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
-                    <span class="order-code">${order.code}</span>
-                </div>
-                <div class="order-second-line">
-                    <span class="order-size" contenteditable="true" onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
-                    <div class="order-quantity-price">
-                        <span>${order.quantity}件</span>
-                        <span class="order-price" contenteditable="true" onblur="updateOrderField('${order.id}', 'price', this.textContent)">${order.price || '-'}</span>
-                    </div>
-                    <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
-                </div>
-            </div>
-        `).join('');
-    } catch (error) {
-        console.error('获取订单失败:', error);
-    }
-}
-
-// 更新订单字段
-async function updateOrderField(orderId, field, value) {
-    try {
-        await db.collection('orders').doc(orderId).update({
-            [field]: value.trim(),
-            timestamp: new Date().toISOString()
-        });
-    } catch (error) {
-        console.error('更新订单失败:', error);
-        alert('更新失败: ' + error.message);
-    }
-}
-
-// 查看所有订单
-async function openAllOrders() {
-    try {
-        const username = localStorage.getItem('username');
-        const snapshot = await db.collection('orders')
-            .where('username', '==', username)
-            .orderBy('timestamp', 'desc')
-            .get();
-
-        const orders = [];
-        snapshot.forEach(doc => {
-            orders.push({ id: doc.id, ...doc.data() });
-        });
-
-        const html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>所有订单记录</title>
-                <!-- ... (保持原有样式) ... -->
-            </head>
-            <body>
-                <!-- ... (保持原有HTML结构) ... -->
-                ${orders.map(order => `
-                    <div class="order-item">
-                        <!-- ... (保持原有订单显示结构) ... -->
-                    </div>
-                `).join('')}
-            </body>
-            </html>
-        `;
-
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-    } catch (error) {
-        console.error('获取订单失败:', error);
-        alert('获取订单失败: ' + error.message);
-    }
 }
  
