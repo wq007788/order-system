@@ -1063,7 +1063,9 @@ function editRecord(orderId) {
 }
 
 // 修改保存订单函数
-async function saveOrder() {
+async function saveOrder(e) {
+    if (e) e.preventDefault();
+    
     const orderForm = document.getElementById('createOrderForm');
     const editId = orderForm.dataset.editId;
     const orderId = editId || Date.now().toString();
@@ -1082,10 +1084,15 @@ async function saveOrder() {
         timestamp: new Date().toISOString(),
         username: localStorage.getItem('username')
     };
+
+    if (!order.customer || !order.size) {
+        alert('请填写客户和尺码');
+        return;
+    }
     
     try {
-        // 使用 rtdb 而不是 db
-        await rtdb.ref(`orders/${orderId}`).set(order);
+        // 使用 window.firebase
+        await window.firebase.database().ref('orders/' + orderId).set(order);
         
         // 清空表单
         document.getElementById('orderCustomer').value = '';
@@ -1098,6 +1105,8 @@ async function saveOrder() {
         
         // 聚焦到客户输入框
         document.getElementById('orderCustomer').focus();
+        
+        console.log('订单保存成功:', order);
     } catch (error) {
         console.error('保存订单失败:', error);
         alert('保存订单失败: ' + error.message);
@@ -1367,7 +1376,7 @@ async function clearImagesFromDB() {
     });
 }
 
-// 修改价格比较功能为版本选择
+// 修��价格比较功能为版本选择
 function showPriceCompare(code) {
     const productData = JSON.parse(localStorage.getItem('productData') || '{}');
     const priceCompareModal = document.getElementById('priceCompareModal');
@@ -1974,7 +1983,7 @@ function generateLabelHTML(labelData) {
                     height: 55mm;                         /* 调整高度以适应10行 */
                 }
                 .label-image {
-                    width: 50mm;                         /* ��整图片宽度 */
+                    width: 50mm;                         /* ���整图片宽度 */
                     height: 50mm;                        /* 调整图片高度 */
                     display: flex;
                     align-items: center;
@@ -2445,7 +2454,7 @@ function initializeNewItemImageUpload() {
             preview.src = compressedImageUrl;
             preview.style.display = 'block';
             
-            // 如果已存在该商品编码，自动填充其他信息，但保留当前供应商
+            // 如果已存在该商品编码，自动填充其他信息，但���留当前供应商
             const productData = JSON.parse(localStorage.getItem('productData') || '{}');
             const matchingProducts = Object.values(productData).filter(p => p.code === code);
             
@@ -2464,7 +2473,7 @@ function initializeNewItemImageUpload() {
             }
         } catch (error) {
             console.error('图片处理失败:', error);
-            alert('图片处理失败���请重试');
+            alert('��片处理失败���请重试');
         }
     });
 }
@@ -2496,15 +2505,55 @@ function closeOrderForm() {
     orderForm.style.display = 'none';
 }
 
-// 添加初始化开单表单函数
+// 修改初始化开单表单函数
 function initializeOrderForm() {
     const orderForm = document.getElementById('createOrderForm');
     if (orderForm) {
-        orderForm.addEventListener('submit', function(e) {
+        orderForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            saveOrder();
+            
+            const order = {
+                id: Date.now().toString(),
+                code: document.getElementById('orderCode').value,
+                name: document.getElementById('orderName').value,
+                supplier: document.getElementById('orderSupplier').value,
+                cost: document.getElementById('orderCost').value,
+                price: document.getElementById('orderPrice').value,
+                customer: document.getElementById('orderCustomer').value,
+                size: document.getElementById('orderSize').value,
+                quantity: document.getElementById('orderQuantity').value,
+                remark: document.getElementById('orderRemark').value,
+                timestamp: new Date().toISOString(),
+                username: localStorage.getItem('username')
+            };
+
+            if (!order.customer || !order.size) {
+                alert('请填写客户和尺码');
+                return;
+            }
+            
+            try {
+                // 使用 firebase.database()
+                const dbRef = firebase.database().ref('orders/' + order.id);
+                await dbRef.set(order);
+                
+                // 清空表单
+                document.getElementById('orderCustomer').value = '';
+                document.getElementById('orderSize').value = '';
+                document.getElementById('orderQuantity').value = '1';
+                document.getElementById('orderRemark').value = '';
+                
+                // 聚焦到客户输入框
+                document.getElementById('orderCustomer').focus();
+                
+                console.log('订单保存成功:', order);
+            } catch (error) {
+                console.error('保存订单失败:', error);
+                alert('保存订单失败: ' + error.message);
+            }
         });
     }
+    
     // 初始化时显示最近订单
     updateRecentOrders();
 }
@@ -2534,8 +2583,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 function updateRecentOrders() {
     const username = localStorage.getItem('username');
     
-    // 监听订单数据变化
-    rtdb.ref('orders')
+    // 使用 window.firebase
+    window.firebase.database().ref('orders')
         .orderByChild('timestamp')
         .limitToLast(10)
         .on('value', (snapshot) => {
@@ -2548,22 +2597,24 @@ function updateRecentOrders() {
             });
 
             const recentOrdersList = document.getElementById('recentOrdersList');
-            recentOrdersList.innerHTML = orders.map(order => `
-                <div class="recent-order-item">
-                    <div class="order-main-info">
-                        <span class="order-customer" contenteditable="true" onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
-                        <span class="order-code">${order.code}</span>
-                    </div>
-                    <div class="order-second-line">
-                        <span class="order-size" contenteditable="true" onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
-                        <div class="order-quantity-price">
-                            <span>${order.quantity}件</span>
-                            <span class="order-price" contenteditable="true" onblur="updateOrderField('${order.id}', 'price', this.textContent)">${order.price || '-'}</span>
+            if (recentOrdersList) {
+                recentOrdersList.innerHTML = orders.map(order => `
+                    <div class="recent-order-item">
+                        <div class="order-main-info">
+                            <span class="order-customer">${order.customer || '未填写'}</span>
+                            <span class="order-code">${order.code}</span>
                         </div>
-                        <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                        <div class="order-second-line">
+                            <span class="order-size">${order.size || '-'}</span>
+                            <div class="order-quantity-price">
+                                <span>${order.quantity}件</span>
+                                <span class="order-price">${order.price || '-'}</span>
+                            </div>
+                            <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `).join('');
+            }
         });
 }
 
