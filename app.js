@@ -705,7 +705,7 @@ async function handleExcelImport(event) {
             console.log('Excel导出成功');
             alert('Excel导入成功！');
         } else {
-            throw new Error('Excel文件为空或格式不正确');
+            throw new Error('Excel文件为空或格式不正���');
         }
     } catch (error) {
         console.error('Excel导入失败:', error);
@@ -1786,7 +1786,7 @@ function exportSupplierStats() {
             })
             .map(stat => ({
                 '供应商': stat.supplier,
-                '总���本': Math.round(stat.totalCost),  // 改为四舍五入取整
+                '总�����本': Math.round(stat.totalCost),  // 改为四舍五入取整
                 '总数量': stat.totalQuantity,
                 '总金额': Math.round(stat.totalAmount), // 改为四舍五入取整
                 '毛利': Math.round(stat.grossProfit),   // 改为四舍五入取整
@@ -2464,7 +2464,7 @@ function initializeNewItemImageUpload() {
             }
         } catch (error) {
             console.error('图片处理失败:', error);
-            alert('图片处理失败，请重试');
+            alert('图片处理失败���请重试');
         }
     });
 }
