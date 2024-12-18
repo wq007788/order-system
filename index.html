@@ -1498,7 +1498,7 @@
             width: 100px;
         }
 
-        /* 商品名称、供应商、客户、备注使用自适应宽度 */
+        /* 商品名称、供应商、客户、备货使用自适应宽度 */
         #orderForm input#orderName,
         #orderForm input#orderSupplier,
         #orderForm input#orderCustomer,
@@ -1536,28 +1536,122 @@
             color: #f44336;
         }
 
-        .logout-btn {
-            background-color: #f44336;
+        .view-all-btn {
+            background-color: #1976D2;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
         }
 
-        .logout-btn:hover {
-            background-color: #d32f2f;
+        .view-all-btn:hover {
+            background-color: #1565C0;
+        }
+
+        /* 修改商品编码样式 */
+        .order-code {
+            color: #1976D2;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .order-code-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .order-name {
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* 修改查看全部订单页面的编码样式 */
+        .code {
+            color: #1976D2;
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: bold;
+            min-width: 100px;
+        }
+
+        /* 在 style 标签中添加新导入订单的样式 */
+        .order-item.new-import {
+            background-color: #e3f2fd;
+            animation: fadeBackground 5s forwards;
+        }
+        
+        @keyframes fadeBackground {
+            from { background-color: #e3f2fd; }
+            to { background-color: transparent; }
+        }
+
+        /* 修改放大按钮样式 */
+        .zoom-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #1976D2;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            z-index: 2;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .zoom-btn:hover {
+            transform: scale(1.1);
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* 在 style 标签中添加放大图片的容器 */
+        .zoomed-image-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .zoomed-image {
+            max-width: 90%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+
+        /* 在 style 标签中添加关闭放大图片的按钮 */
+        .close-zoom {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
         }
     </style>
 </head>
 <body>
-    <script>
-        // 检查是否已登录
-        if (localStorage.getItem('isLoggedIn') !== 'true') {
-            window.location.href = 'login.html';
-        }
-    </script>
-
     <div class="container">
         <h1>商品图片批量上传系统</h1>
         
@@ -1567,16 +1661,20 @@
                 <button onclick="document.getElementById('excelFile').click()" class="import-btn">导入Excel</button>
                 <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
                 <button onclick="document.getElementById('folderInput').click()" class="import-btn">关联图片文件夹</button>
-                <input type="date" id="exportDate" style="padding: 8px; margin-right: 5px;">
+                <input type="date" id="exportDate" style="padding: 8px; margin-right: 5px;" value="">
                 <button onclick="exportData()" class="export-btn">导出订单</button>
                 <button onclick="exportSupplierStats()" class="export-btn">导出统计</button>
                 <button onclick="exportProductData()" class="export-btn">导出商品</button>
                 <button onclick="generateOrderLabels()" class="export-btn">生成标签</button>
                 <button onclick="clearAllData()" class="clear-btn">清除商品数据</button>
-                <button onclick="clearTodayOrders()" class="clear-btn">清今日订单</button>
                 <button onclick="openHidePriceManager()" class="manage-btn">管理价格显示</button>
                 <button onclick="exportSupplierOrder()" class="export-btn">导出报货表</button>
-                <button onclick="logout()" class="logout-btn">退出登录</button>
+                <button onclick="openImageSearch()" class="action-button">
+                    <i class="fas fa-camera"></i>
+                    以图搜图
+                </button>
+                <input type="file" id="orderExcelFile" accept=".xlsx,.xls" style="display: none;">
+                <button onclick="document.getElementById('orderExcelFile').click()" class="import-btn">导入订单</button>
             </div>
         </div>
 
@@ -1666,7 +1764,7 @@
     <div id="batchActions" class="batch-actions" style="display: none;">
         <span class="count"></span>
         <button onclick="deleteSelectedItems()" class="delete-btn">删除选中</button>
-        <button onclick="clearSelection()" class="cancel-btn">取消选择</button>
+        <button onclick="clearSelection()" class="cancel-btn">取���选择</button>
     </div>
 
     <div class="edit-form" id="editProductForm">
@@ -1756,11 +1854,19 @@
             <!-- 添加最近订单显示区域 -->
             <div id="recentOrders" class="recent-orders">
                 <div class="recent-orders-header">
-                    <h4 onclick="openAllOrders()" style="cursor: pointer; color: #1976D2;">最近订单 (点击查看全部)</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h4>最近订单</h4>
+                        <button onclick="openAllOrders()" class="view-all-btn">查看全部</button>
+                    </div>
                 </div>
                 <div class="recent-orders-list" id="recentOrdersList"></div>
             </div>
         </div>
+    </div>
+
+    <div class="zoomed-image-container" id="zoomedImageContainer">
+        <button class="close-zoom" onclick="closeZoomedImage()">×</button>
+        <img class="zoomed-image" id="zoomedImage" src="" alt="放大图片">
     </div>
 
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
@@ -1775,36 +1881,6 @@
                 scrollTop.classList.remove('visible');
             }
         });
-
-        function logout() {
-            localStorage.removeItem('isLoggedIn');
-            window.location.href = 'login.html';
-        }
-    </script>
-
-    <!-- 在 </body> 前添加 Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
-    <script>
-        // Firebase 配置
-        const firebaseConfig = {
-            apiKey: "AIzaSyDXXB9h_YiRh-5SV_9qWZxYb6JEtjtlZVE",
-            authDomain: "order-system-huangquan.firebaseapp.com",
-            projectId: "order-system-huangquan",
-            storageBucket: "order-system-huangquan.appspot.com",
-            messagingSenderId: "1098360816233",
-            appId: "1:1098360816233:web:1234567890abcdef",
-            databaseURL: "https://order-system-huangquan-default-rtdb.asia-southeast1.firebasedatabase.app"
-        };
-
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // 初始化 Firestore 和 Realtime Database
-        window.db = firebase.firestore();
-        window.rtdb = firebase.database();
     </script>
 </body>
 </html> 

@@ -410,6 +410,7 @@ function createImageItem(image) {
         <div class="select-overlay ${selectedItems.has(uniqueId) ? 'selected' : ''}" onclick="toggleSelectItem('${uniqueId}')">
             <div class="checkbox">${selectedItems.has(uniqueId) ? '✓' : ''}</div>
         </div>
+        <button class="zoom-btn" onclick="event.stopPropagation(); showZoomedImage('${image.file}')">+</button>
         <img src="${image.file}" alt="${image.code}">
         <div class="info">
             <p><span>编码</span><span class="clickable" onclick="event.stopPropagation(); showPriceCompare('${image.code}')">${image.code}</span></p>
@@ -423,7 +424,6 @@ function createImageItem(image) {
     
     // 添加整个商品项的点击事件
     div.addEventListener('click', () => {
-        // 合并图片和商品数据
         const fullProduct = {
             code: image.code,
             supplier: image.supplier,
@@ -876,7 +876,7 @@ async function handleFolderSelect(event) {
                         console.log(`保存成功: ${uniqueId}`);
                     }
                 } catch (err) {
-                    console.error(`处理图片失败 ${code}:`, err);
+                    console.error(`��理图片失败 ${code}:`, err);
                 }
             } else {
                 console.log(`未找到匹配的商编码: ${code}`);
@@ -901,7 +901,7 @@ async function handleFolderSelect(event) {
         
     } catch (error) {
         console.error('处理文件夹失败:', error);
-        alert('处理文件夹失败: ' + error.message);
+        alert('处理文件夹失��: ' + error.message);
     } finally {
         progressBar.style.display = 'none';
         progress.style.width = '0%';
@@ -1063,50 +1063,48 @@ function editRecord(orderId) {
 }
 
 // 修改保存订单函数
-async function saveOrder(e) {
-    if (e) e.preventDefault();
-    
-    const orderForm = document.getElementById('createOrderForm');
-    const editId = orderForm.dataset.editId;
-    const orderId = editId || Date.now().toString();
-    
-    const order = {
-        id: orderId,
-        code: document.getElementById('orderCode').value,
-        name: document.getElementById('orderName').value,
-        supplier: document.getElementById('orderSupplier').value,
-        cost: document.getElementById('orderCost').value,
-        price: document.getElementById('orderPrice').value,
-        customer: document.getElementById('orderCustomer').value,
-        size: document.getElementById('orderSize').value,
-        quantity: document.getElementById('orderQuantity').value,
-        remark: document.getElementById('orderRemark').value,
-        timestamp: new Date().toISOString(),
-        username: localStorage.getItem('username')
-    };
-
-    if (!order.customer || !order.size) {
-        alert('请填写客户和尺码');
-        return;
-    }
-    
+function saveOrder() {
     try {
-        // 使用 window.firebase
-        await window.firebase.database().ref('orders/' + orderId).set(order);
-        
-        // 清空表单
-        document.getElementById('orderCustomer').value = '';
+        const orderForm = document.getElementById('createOrderForm');
+        const editId = orderForm.dataset.editId;
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const orderId = editId || Date.now().toString();
+
+        // 创建订单对象
+        const order = {
+            id: orderId,
+            code: document.getElementById('orderCode').value.trim(),
+            name: document.getElementById('orderName').value.trim(),
+            supplier: document.getElementById('orderSupplier').value.trim(),
+            cost: document.getElementById('orderCost').value.trim(),
+            price: document.getElementById('orderPrice').value.trim(),
+            customer: document.getElementById('orderCustomer').value.trim(),
+            size: document.getElementById('orderSize').value.trim(),
+            quantity: document.getElementById('orderQuantity').value.trim(),
+            remark: document.getElementById('orderRemark').value.trim(),
+            timestamp: editId ? orderData[orderId].timestamp : new Date().toISOString()
+        };
+
+        // 保存订单
+        orderData[orderId] = order;
+        localStorage.setItem('orderData', JSON.stringify(orderData));
+
+        console.log('订单保存成功:', order);
+
+        // 清空表单，但保留客户名字
         document.getElementById('orderSize').value = '';
         document.getElementById('orderQuantity').value = '1';
         document.getElementById('orderRemark').value = '';
-        
+
         // 清除编辑标记
         delete orderForm.dataset.editId;
-        
-        // 聚焦到客户输入框
-        document.getElementById('orderCustomer').focus();
-        
-        console.log('订单保存成功:', order);
+
+        // 更新最近订单显示
+        updateRecentOrders();
+
+        // 聚焦到尺码输入框
+        document.getElementById('orderSize').focus();
+
     } catch (error) {
         console.error('保存订单失败:', error);
         alert('保存订单失败: ' + error.message);
@@ -1303,7 +1301,7 @@ function checkDBConnection() {
             const request = store.count();
 
             request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(new Error('数据库连接测试失败'));
+            request.onerror = () => reject(new Error('数据库连接测试��败'));
         } catch (error) {
             reject(error);
         }
@@ -1320,9 +1318,9 @@ async function ensureDBConnection() {
     }
 }
 
-// 修改清除数据功能
+// 修��清除数据功能
 async function clearAllData() {
-    const password = prompt('请输入管理员密码:');
+    const password = prompt('���输入管理员密码:');
     
     // 验证密码
     if (password !== '900910') {
@@ -1376,7 +1374,7 @@ async function clearImagesFromDB() {
     });
 }
 
-// 修��价格比较功能为版本选择
+// 修改价格比较功能为版本选择
 function showPriceCompare(code) {
     const productData = JSON.parse(localStorage.getItem('productData') || '{}');
     const priceCompareModal = document.getElementById('priceCompareModal');
@@ -1386,14 +1384,12 @@ function showPriceCompare(code) {
     const matchingProducts = Object.values(productData).filter(product => product.code === code);
     
     if (matchingProducts.length > 0) {
-        // 按价格排序
-        matchingProducts.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
-        
         // 生成版本选择列表
         priceCompareList.innerHTML = `
             <div class="price-compare-header">
                 <h4>商品编码: ${code}</h4>
-                <p>商品名称: ${matchingProducts[0].name || '-'}</p>
+                <p>商品��称: ${matchingProducts[0].name || '-'}</p>
+                <span class="close-btn" onclick="closePriceCompare()">&times;</span>
             </div>
             ${matchingProducts.map(product => {
                 const supplier = (product.supplier || '').replace(/'/g, '&#39;');
@@ -1408,17 +1404,95 @@ function showPriceCompare(code) {
                         <div class="price-info">
                             <div class="price">¥${product.price || '-'}</div>
                             <div class="cost">成本: ¥${product.cost || '-'}</div>
+                            <button class="select-btn" onclick="fillOrderForm('${product.code}', '${product.name}', '${product.supplier}', '${product.price}', '${product.cost}')">
+                                选择此版本
+                            </button>
                         </div>
                     </div>
                 `;
             }).join('')}
         `;
+
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .price-compare-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px;
+                border-bottom: 1px solid #eee;
+            }
+            .close-btn {
+                font-size: 24px;
+                cursor: pointer;
+                color: #666;
+                padding: 0 10px;
+            }
+            .close-btn:hover {
+                color: #333;
+            }
+            .price-compare-item {
+                padding: 15px;
+                border: 1px solid #eee;
+                border-radius: 8px;
+                margin-bottom: 10px;
+            }
+            .supplier-info {
+                margin-bottom: 8px;
+            }
+            .supplier-name {
+                font-weight: bold;
+                font-size: 15px;
+                color: #333;
+            }
+            .extra-info {
+                font-size: 13px;
+                color: #666;
+                margin-top: 4px;
+            }
+            .price-info {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .price {
+                font-size: 16px;
+                font-weight: bold;
+                color: #f44336;
+            }
+            .cost {
+                font-size: 13px;
+                color: #666;
+            }
+            .select-btn {
+                background: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background 0.3s;
+            }
+            .select-btn:hover {
+                background: #1976D2;
+            }
+        `;
+        document.head.appendChild(style);
         
         priceCompareModal.classList.add('active');
         document.getElementById('overlay').classList.add('active');
     } else {
         alert('未找到相关商品信息');
     }
+}
+
+// 添加关闭版本选择的函数
+function closePriceCompare() {
+    const modal = document.getElementById('priceCompareModal');
+    const overlay = document.getElementById('overlay');
+    if (modal) modal.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
 }
 
 // 修改供应商导航更新函数
@@ -1444,1312 +1518,2057 @@ function updateSupplierNav() {
     `;
 }
 
-// 添加滚动到指定供应商的函数
-function scrollToSupplier(supplier) {
-    const supplierSection = document.querySelector(`.supplier-group[data-supplier="${supplier}"]`);
-    if (supplierSection) {
-        supplierSection.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-// 添加选择状态管理
-let selectedItems = new Set();
-
-// 添加选择/取消选功能
-function toggleSelectItem(id) {
-    if (selectedItems.has(id)) {
-        selectedItems.delete(id);
-    } else {
-        selectedItems.add(id);
-    }
-    updateImageGrid();
-    updateBatchActions();
-}
-
-// 添加批量操作按钮的显示/隐藏
-function updateBatchActions() {
-    const batchActions = document.getElementById('batchActions');
-    if (selectedItems.size > 0) {
-        batchActions.style.display = 'flex';
-        batchActions.innerHTML = `
-            <span class="count">已选择 ${selectedItems.size} 项</span>
-            <button onclick="editSelectedItems()" class="edit-btn">编辑商品</button>
-            <button onclick="deleteSelectedItems()" class="delete-btn">删除选中</button>
-            <button onclick="clearSelection()" class="cancel-btn">取消选择</button>
-        `;
-    } else {
-        batchActions.style.display = 'none';
-    }
-}
-
-// 优化批量删除功能
-async function deleteSelectedItems() {
-    if (selectedItems.size === 0) return;
-    
-    if (!confirm(`确定要删除中的 ${selectedItems.size} 个商吗？此操作不可恢复！`)) {
-        return;
+    // 添加滚动到指定供应商的函数
+    function scrollToSupplier(supplier) {
+        const supplierSection = document.querySelector(`.supplier-group[data-supplier="${supplier}"]`);
+        if (supplierSection) {
+            supplierSection.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
-    const progressBar = document.querySelector('.progress-bar');
-    const progress = document.querySelector('.progress');
-    progressBar.style.display = 'block';
+    // 添加选择状态管理
+    let selectedItems = new Set();
 
-    try {
-        const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-        const total = selectedItems.size;
-        let completed = 0;
-
-        // 使用 Promise.all 并发处理删除操作
-        await Promise.all(Array.from(selectedItems).map(async (id) => {
-            try {
-                delete productData[id];
-                await deleteImageFromDB(id);
-                completed++;
-                progress.style.width = `${(completed / total) * 100}%`;
-            } catch (error) {
-                console.error(`删除项 ${id} 失败:`, error);
-            }
-        }));
-
-        localStorage.setItem('productData', JSON.stringify(productData));
-        selectedItems.clear();
-        await updateImageGrid();
+    // 添加选择/取消选功能
+    function toggleSelectItem(id) {
+        if (selectedItems.has(id)) {
+            selectedItems.delete(id);
+        } else {
+            selectedItems.add(id);
+        }
+        updateImageGrid();
         updateBatchActions();
+    }
+
+    // 添加批量操作按钮的显示/隐藏
+    function updateBatchActions() {
+        const batchActions = document.getElementById('batchActions');
+        if (selectedItems.size > 0) {
+            batchActions.style.display = 'flex';
+            batchActions.innerHTML = `
+                <span class="count">已选择 ${selectedItems.size} 项</span>
+                <button onclick="editSelectedItems()" class="edit-btn">编辑商品</button>
+                <button onclick="deleteSelectedItems()" class="delete-btn">删除选中</button>
+                <button onclick="clearSelection()" class="cancel-btn">取消选择</button>
+            `;
+        } else {
+            batchActions.style.display = 'none';
+        }
+    }
+
+    // 优化批量删除功能
+    async function deleteSelectedItems() {
+        if (selectedItems.size === 0) return;
         
-        alert('删除成功！');
-    } catch (error) {
-        console.error('批量删除失败:', error);
-        alert('删除失败，请重试');
-    } finally {
-        progressBar.style.display = 'none';
-        progress.style.width = '0%';
+        if (!confirm(`确定要删除中的 ${selectedItems.size} 个商吗？此操作不可恢复！`)) {
+            return;
+        }
+
+        const progressBar = document.querySelector('.progress-bar');
+        const progress = document.querySelector('.progress');
+        progressBar.style.display = 'block';
+
+        try {
+            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+            const total = selectedItems.size;
+            let completed = 0;
+
+            // 使用 Promise.all 并发处理删除操作
+            await Promise.all(Array.from(selectedItems).map(async (id) => {
+                try {
+                    delete productData[id];
+                    await deleteImageFromDB(id);
+                    completed++;
+                    progress.style.width = `${(completed / total) * 100}%`;
+                } catch (error) {
+                    console.error(`删除项 ${id} 失败:`, error);
+                }
+            }));
+
+            localStorage.setItem('productData', JSON.stringify(productData));
+            selectedItems.clear();
+            await updateImageGrid();
+            updateBatchActions();
+            
+            alert('删除成功！');
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            alert('删除失败，请重试');
+        } finally {
+            progressBar.style.display = 'none';
+            progress.style.width = '0%';
+        }
     }
-}
 
-// 消所有选择
-function clearSelection() {
-    selectedItems.clear();
-    updateImageGrid();
-    updateBatchActions();
-}
-
-// 添加批量编辑能
-function editSelectedItems() {
-    if (selectedItems.size === 0) {
-        alert('请选择要编辑的商品');
-        return;
+    // 消所有选择
+    function clearSelection() {
+        selectedItems.clear();
+        updateImageGrid();
+        updateBatchActions();
     }
 
-    const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-    const firstItemId = Array.from(selectedItems)[0];
-    const firstProduct = productData[firstItemId];
+    // 添加批量编辑能
+    function editSelectedItems() {
+        if (selectedItems.size === 0) {
+            alert('请选择要编辑的商品');
+            return;
+        }
 
-    // 打开商品编辑表单
-    const editProductForm = document.getElementById('editProductForm');
-    const overlay = document.getElementById('overlay');
+        const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+        const firstItemId = Array.from(selectedItems)[0];
+        const firstProduct = productData[firstItemId];
 
-    // 填充表单数据
-    document.getElementById('editProductCode').value = firstProduct.code;
-    document.getElementById('editProductCode').readOnly = true;
-    document.getElementById('editProductName').value = firstProduct.name || '';
-    document.getElementById('editProductSupplier').value = firstProduct.supplier || '';
-    document.getElementById('editProductCost').value = firstProduct.cost || '';
-    document.getElementById('editProductPrice').value = firstProduct.price || '';
-    document.getElementById('editProductSize').value = firstProduct.size || '';
-    document.getElementById('editProductRemark').value = firstProduct.remark || '';
+        // 打开商品编辑表单
+        const editProductForm = document.getElementById('editProductForm');
+        const overlay = document.getElementById('overlay');
 
-    editProductForm.classList.add('active');
-    overlay.classList.add('active');
-}
+        // 填充表单数据
+        document.getElementById('editProductCode').value = firstProduct.code;
+        document.getElementById('editProductCode').readOnly = true;
+        document.getElementById('editProductName').value = firstProduct.name || '';
+        document.getElementById('editProductSupplier').value = firstProduct.supplier || '';
+        document.getElementById('editProductCost').value = firstProduct.cost || '';
+        document.getElementById('editProductPrice').value = firstProduct.price || '';
+        document.getElementById('editProductSize').value = firstProduct.size || '';
+        document.getElementById('editProductRemark').value = firstProduct.remark || '';
 
-// 保存商品编辑
-async function saveProductEdit() {
-    const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-    
-    // 获取表单数据
-    const formData = {
-        name: document.getElementById('editProductName').value,
-        supplier: document.getElementById('editProductSupplier').value,
-        cost: document.getElementById('editProductCost').value,
-        price: document.getElementById('editProductPrice').value,
-        size: document.getElementById('editProductSize').value,
-        remark: document.getElementById('editProductRemark').value,
-        timestamp: new Date().toISOString()
-    };
+        editProductForm.classList.add('active');
+        overlay.classList.add('active');
+    }
 
-    // 更新所选中的商品
-    for (const id of selectedItems) {
-        const product = productData[id];
-        productData[id] = {
-            ...product,
-            ...formData
+    // 保存商品编辑
+    async function saveProductEdit() {
+        const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+        
+        // 获取表单数据
+        const formData = {
+            name: document.getElementById('editProductName').value,
+            supplier: document.getElementById('editProductSupplier').value,
+            cost: document.getElementById('editProductCost').value,
+            price: document.getElementById('editProductPrice').value,
+            size: document.getElementById('editProductSize').value,
+            remark: document.getElementById('editProductRemark').value,
+            timestamp: new Date().toISOString()
         };
-    }
 
-    // 保存更新后的数据
-    localStorage.setItem('productData', JSON.stringify(productData));
-
-    // 更新显示
-    await updateImageGrid();
-    closeEditProductForm();
-    clearSelection();
-
-    alert('商品信息已更新');
-}
-
-// 关闭商品编辑表单
-function closeEditProductForm() {
-    const editProductForm = document.getElementById('editProductForm');
-    const overlay = document.getElementById('overlay');
-    editProductForm.classList.remove('active');
-    overlay.classList.remove('active');
-}
-
-// 初始化商品编辑表单
-function initializeProductEditForm() {
-    const form = document.getElementById('productEditForm');
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await saveProductEdit();
-    });
-}
-
-// 修改导出订单数据功能
-function exportData() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
-    
-    // 过滤当天的订单
-    const dayStart = new Date(exportDate);
-    const dayEnd = new Date(exportDate);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const filteredOrders = Object.values(orderData).filter(order => {
-        const orderDate = new Date(order.timestamp);
-        return orderDate >= dayStart && orderDate < dayEnd;
-    });
-
-    if (filteredOrders.length === 0) {
-        alert(`${exportDate} 没有订单记录`);
-        return;
-    }
-
-    // 创建Excel工作表，按指定顺序排列段
-    const ws = XLSX.utils.json_to_sheet(filteredOrders.map(order => {
-        // 计算金额和毛利
-        const quantity = Number(order.quantity) || 0;
-        const price = Number(order.price) || 0;
-        const cost = Number(order.cost) || 0;
-        const amount = quantity * price;
-        const profit = amount - (quantity * cost);
-
-        return {
-            '客户': order.customer || '',
-            '商品编码': order.code || '',
-            '商品名称': order.name || '',
-            '尺码': order.size || '',
-            '单价': Math.round(price),           // 改为整数
-            '成本': Math.round(cost),            // 改为整数
-            '数量': quantity,
-            '金额': Math.round(amount),          // 改为整数
-            '毛利': Math.round(profit),          // 改为整数
-            '应商': order.supplier || '',
-            '日期': new Date(order.timestamp).toLocaleString(),
-            '备注': order.remark || ''
-        };
-    }));
-
-    // 设置列宽
-    ws['!cols'] = [
-        { wch: 15 },  // 客户
-        { wch: 15 },  // 商品编码
-        { wch: 30 },  // 商品名称
-        { wch: 10 },  // 尺码
-        { wch: 10 },  // 单价
-        { wch: 10 },  // 成本
-        { wch: 10 },  // 数量
-        { wch: 12 },  // 金额
-        { wch: 12 },  // 毛利
-        { wch: 15 },  // 供应商
-        { wch: 20 },  // 日期
-        { wch: 30 }   // 备注
-    ];
-
-    // 创建工作簿
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '订单记录');
-
-    // 导出文件
-    XLSX.writeFile(wb, `订单记录_${exportDate}.xlsx`);
-}
-
-// 修改导出统计功能
-function exportSupplierStats() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
-    
-    // 过滤当天的订
-    const dayStart = new Date(exportDate);
-    const dayEnd = new Date(exportDate);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const filteredOrders = Object.values(orderData).filter(order => {
-        const orderDate = new Date(order.timestamp);
-        return orderDate >= dayStart && orderDate < dayEnd;
-    });
-
-    if (filteredOrders.length === 0) {
-        alert(`${exportDate} 没有订单记录`);
-        return;
-    }
-
-    // 按供应商分组统计
-    const supplierStats = {};
-    filteredOrders.forEach(order => {
-        const supplier = order.supplier || '未知供应商';
-        if (!supplierStats[supplier]) {
-            supplierStats[supplier] = {
-                supplier: supplier,
-                orderCount: 0,
-                totalQuantity: 0,
-                totalAmount: 0,
-                totalCost: 0,
-                orders: []
+        // 更新所选中的商品
+        for (const id of selectedItems) {
+            const product = productData[id];
+            productData[id] = {
+                ...product,
+                ...formData
             };
         }
+
+        // 保存更新后的数据
+        localStorage.setItem('productData', JSON.stringify(productData));
+
+        // 更新显示
+        await updateImageGrid();
+        closeEditProductForm();
+        clearSelection();
+
+        alert('商品信息已更新');
+    }
+
+    // 关闭商品编辑表单
+    function closeEditProductForm() {
+        const editProductForm = document.getElementById('editProductForm');
+        const overlay = document.getElementById('overlay');
+        editProductForm.classList.remove('active');
+        overlay.classList.remove('active');
+    }
+
+    // 初始化商品编辑表单
+    function initializeProductEditForm() {
+        const form = document.getElementById('productEditForm');
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await saveProductEdit();
+        });
+    }
+
+    // 修改导出订单数据功能
+    function exportData() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
         
-        const quantity = Number(order.quantity) || 0;
-        const price = Number(order.price) || 0;
-        const cost = Number(order.cost) || 0;
+        // 过滤选择日期的订单
+        const dayStart = new Date(exportDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(exportDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const filteredOrders = Object.values(orderData).filter(order => {
+            const orderDate = new Date(order.timestamp);
+            orderDate.setHours(0, 0, 0, 0);
+            return orderDate >= dayStart && orderDate < dayEnd;
+        });
+
+        if (filteredOrders.length === 0) {
+            alert(`${exportDate} 没有订单记录`);
+            return;
+        }
+
+        // 创建Excel工作表，按指定顺序排列字段
+        const ws = XLSX.utils.json_to_sheet(filteredOrders.map(order => ({
+                '客户': order.customer || '',
+                '商品编码': order.code || '',
+                '商品名称': order.name || '',
+                '尺码': order.size || '',
+            '单价': order.price || '',
+            '成本': order.cost || '',
+            '数量': order.quantity || '',
+            '供货商': order.supplier || '',
+            '录入时间': new Date(order.timestamp).toLocaleString(),
+                '备注': order.remark || ''
+        })));
+
+        // 设置列宽
+        ws['!cols'] = [
+            { wch: 15 },  // 客户
+            { wch: 15 },  // 商品编码
+            { wch: 30 },  // 商品名称
+            { wch: 10 },  // 尺码
+            { wch: 10 },  // 单价
+            { wch: 10 },  // 成本
+            { wch: 10 },  // 数量
+            { wch: 15 },  // 供货商
+            { wch: 20 },  // 录入时间
+            { wch: 30 }   // 备注
+        ];
+
+        // 创建工作簿并导出
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '订单记录');
+        XLSX.writeFile(wb, `订单记录_${exportDate}.xlsx`);
+    }
+
+    // 修改导出统计功能
+    function exportSupplierStats() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
         
-        supplierStats[supplier].orderCount++;
-        supplierStats[supplier].totalQuantity += quantity;
-        supplierStats[supplier].totalAmount += quantity * price;
-        supplierStats[supplier].totalCost += quantity * cost;
-        supplierStats[supplier].orders.push(order);
-    });
+        // 过滤当天的订单
+        const dayStart = new Date(exportDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(exportDate);
+        dayEnd.setHours(23, 59, 59, 999);
 
-    // 转换为数组并计算毛利率
-    const statsArray = Object.values(supplierStats).map(stat => {
-        const grossProfit = stat.totalAmount - stat.totalCost;
-        const profitRate = stat.totalAmount === 0 ? 0 : (grossProfit / stat.totalAmount * 100);
-        return {
-            ...stat,
-            grossProfit,
-            profitRate
-        };
-    });
+        const filteredOrders = Object.values(orderData).filter(order => {
+            const orderDate = new Date(order.timestamp);
+            orderDate.setHours(0, 0, 0, 0);
+            return orderDate >= dayStart && orderDate < dayEnd;
+        });
 
-    // 创建工作簿
-    const wb = XLSX.utils.book_new();
+        if (filteredOrders.length === 0) {
+            alert(`${exportDate} 没有订单记录`);
+            return;
+        }
+        
+        // 创建工作簿
+        const wb = XLSX.utils.book_new();
+        
+        // 按供应商分组统计
+        const supplierStats = {};
+        filteredOrders.forEach(order => {
+            const supplier = order.supplier || '未知供应商';
+            if (!supplierStats[supplier]) {
+                supplierStats[supplier] = {
+                    supplier: supplier,
+                    totalCost: 0,
+                    totalQuantity: 0,
+                    totalAmount: 0,
+                    orderCount: 0,
+                    orders: []
+                };
+            }
+            
+            const quantity = Number(order.quantity) || 0;
+            const price = Number(order.price) || 0;
+            const cost = Number(order.cost) || 0;
+            const amount = quantity * price;
+            
+            supplierStats[supplier].totalCost += quantity * cost;
+            supplierStats[supplier].totalQuantity += quantity;
+            supplierStats[supplier].totalAmount += amount;
+            supplierStats[supplier].orderCount++;
+            supplierStats[supplier].orders.push(order);
+        });
 
-    // 创建汇总表
-    const summaryData = statsArray.map(stat => ({
-        '供应商': stat.supplier,
-        '订单数': stat.orderCount,
-        '总数量': stat.totalQuantity,
-        '总金额': stat.totalAmount.toFixed(2),
-        '总成本': stat.totalCost.toFixed(2),
-        '毛利': stat.grossProfit.toFixed(2),
-        '毛利率': stat.profitRate.toFixed(2) + '%'
-    }));
-
-    // 添加合计行
-    const totals = statsArray.reduce((acc, stat) => ({
-        orderCount: acc.orderCount + stat.orderCount,
-        totalQuantity: acc.totalQuantity + stat.totalQuantity,
-        totalAmount: acc.totalAmount + stat.totalAmount,
-        totalCost: acc.totalCost + stat.totalCost,
-        grossProfit: acc.grossProfit + stat.grossProfit
-    }), { orderCount: 0, totalQuantity: 0, totalAmount: 0, totalCost: 0, grossProfit: 0 });
-
-    const totalProfitRate = totals.totalAmount === 0 ? 0 : (totals.grossProfit / totals.totalAmount * 100);
-
-    summaryData.push({
-        '供应商': '总计',
-        '订单数': totals.orderCount,
-        '总数量': totals.totalQuantity,
-        '总金额': totals.totalAmount.toFixed(2),
-        '总成本': totals.totalCost.toFixed(2),
-        '毛利': totals.grossProfit.toFixed(2),
-        '毛利率': totalProfitRate.toFixed(2) + '%'
-    });
-
-    // 修改排序配置的顺序，把总成本排序放在第一位
-    const sortConfigs = [
-        { name: '按总成本排序', key: 'totalCost', numeric: true },
-        { name: '按供应商排序', key: 'supplier' },
-        { name: '按总数量排序', key: 'totalQuantity', numeric: true },
-        { name: '按总金额排序', key: 'totalAmount', numeric: true },
-        { name: '按毛利率排序', key: 'profitRate', numeric: true }
-    ];
-
-    // 修改工作表标题，使其更简洁
-    sortConfigs.forEach(config => {
-        const sortedData = [...statsArray]
+        // 创建汇总表
+        const summarySheet = XLSX.utils.json_to_sheet(Object.values(supplierStats)
             .sort((a, b) => {
-                if (config.numeric) {
-                    return b[config.key] - a[config.key];
-                }
-                return a[config.key].localeCompare(b[config.key]);
+                if (a.supplier === '未知供应商') return 1;
+                if (b.supplier === '未知供应商') return -1;
+                return a.supplier.localeCompare(b.supplier);
             })
             .map(stat => ({
                 '供应商': stat.supplier,
-                '总�����本': Math.round(stat.totalCost),  // 改为四舍五入取整
+                '总成本': Math.round(stat.totalCost),
                 '总数量': stat.totalQuantity,
-                '总金额': Math.round(stat.totalAmount), // 改为四舍五入取整
-                '毛利': Math.round(stat.grossProfit),   // 改为四舍五入取整
-                '毛利率': stat.profitRate.toFixed(2) + '%', // 毛利率保留两位小数
+                '总金额': Math.round(stat.totalAmount),
                 '订单数': stat.orderCount
-            }));
+            })));
 
-        // 添加合计行也使用整数
-        sortedData.push({
-            '供应商': '总计',
-            '总成本': Math.round(totals.totalCost),
-            '总数量': totals.totalQuantity,
-            '总金额': Math.round(totals.totalAmount),
-            '毛利': Math.round(totals.grossProfit),
-            '毛利率': totalProfitRate.toFixed(2) + '%',
-            '订单数': totals.orderCount
-        });
-
-        const sheet = XLSX.utils.json_to_sheet(sortedData);
-        XLSX.utils.book_append_sheet(wb, sheet, config.name);
-
-        // 调整列宽以匹配新的列顺序
-        sheet['!cols'] = [
+        // 设置汇总表的列宽
+        summarySheet['!cols'] = [
             { wch: 20 },  // 供应商
             { wch: 12 },  // 总成本
             { wch: 10 },  // 总数量
             { wch: 12 },  // 总金额
-            { wch: 12 },  // 毛利
-            { wch: 10 },  // 毛利率
             { wch: 10 }   // 订单数
         ];
-    });
 
-    // 为每个供应商创建详细订单表
-    Object.values(supplierStats).forEach(stat => {
-        const detailSheet = XLSX.utils.json_to_sheet(stat.orders.map(order => ({
-            '时间': new Date(order.timestamp).toLocaleString(),
-            '商品编码': order.code,
-            '商品名称': order.name,
-            '客户': order.customer,
-            '数量': order.quantity,
-            '单价': order.price,
-            '金额': (Number(order.quantity) * Number(order.price)).toFixed(2),
-            '成本': order.cost,
-            // 修复括号位置和计算逻辑
-            '毛利': (Number(order.quantity) * (Number(order.price) - Number(order.cost))).toFixed(2),
-            '备注': order.remark
-        })));
+        // 添加汇总表
+        XLSX.utils.book_append_sheet(wb, summarySheet, '供应商汇总');
 
-        // 设置详细表的列宽
-        detailSheet['!cols'] = [
-            { wch: 20 },  // 时间
-            { wch: 15 },  // 商品编码
-            { wch: 30 },  // 商品名称
-            { wch: 15 },  // 户
-            { wch: 10 },  // 数量
-            { wch: 10 },  // 单价
-            { wch: 12 },  // 金额
-            { wch: 10 },  // 成本
-            { wch: 12 },  // 毛利
-            { wch: 20 }   // 备注
-        ];
+        // 为每个供应商创建详细订单表
+        Object.values(supplierStats).forEach(stat => {
+            const detailSheet = XLSX.utils.json_to_sheet(stat.orders.map(order => ({
+                '时间': new Date(order.timestamp).toLocaleString(),
+                '商品编码': order.code,
+                '商品名称': order.name,
+                '客户': order.customer,
+                '数量': order.quantity,
+                '单价': order.price,
+                '金额': (Number(order.quantity) * Number(order.price)).toFixed(2),
+                '成本': order.cost,
+                '备注': order.remark
+            })));
 
-        XLSX.utils.book_append_sheet(wb, detailSheet, stat.supplier.substring(0, 31));
-    });
+            // 设置详细表的列宽
+            detailSheet['!cols'] = [
+                { wch: 20 },  // 时间
+                { wch: 15 },  // 商品编码
+                { wch: 30 },  // 商品名称
+                { wch: 15 },  // 客户
+                { wch: 10 },  // 数量
+                { wch: 10 },  // 单价
+                { wch: 12 },  // 金额
+                { wch: 10 },  // 成本
+                { wch: 20 }   // 备注
+            ];
 
-    // 导出文件
-    XLSX.writeFile(wb, `供应商统计_${exportDate}.xlsx`);
-}
+            XLSX.utils.book_append_sheet(wb, detailSheet, stat.supplier.substring(0, 31));
+        });
 
-// 添加格式化供应商统计数据的辅助函数
-function formatSupplierStat(stat) {
-    const grossProfit = stat.totalAmount - stat.totalCost;
-    const profitRate = stat.totalAmount === 0 ? 0 : (grossProfit / stat.totalAmount * 100);
-    
-    return {
-        '供应商': stat.supplier,
-        '订单数': stat.orderCount,
-        '总数量': stat.totalQuantity,
-        '总金额': stat.totalAmount.toFixed(2),
-        '总成本': stat.totalCost.toFixed(2),
-        '毛利': grossProfit.toFixed(2),
-        '毛利率': profitRate.toFixed(2) + '%'
-    };
-}
-
-// 添加导出商品数据功能
-function exportProductData() {
-    const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-    
-    if (Object.keys(productData).length === 0) {
-        alert('没有商品数据可导出');
-        return;
+        // 导出文件名添加日期
+        const formattedDate = exportDate.replace(/-/g, '');
+        XLSX.writeFile(wb, `供应商统计_${formattedDate}.xlsx`);
     }
 
-    try {
-        // 将商品数据转换为数组格式
-        const products = Object.values(productData).map(product => ({
-            '商品编码': product.code,
-            '商品名称': product.name || '',
-            '供应商': product.supplier || '',
-            '成本': product.cost || '',
-            '单价': product.price || '',
-            '尺码': product.size || '',
-            '备注': product.remark || '',
-            '最后更新时间': new Date(product.timestamp).toLocaleString()
-        }));
-
-        // 创建工作簿和工作表
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(products);
-
-        // 设置列宽
-        const colWidths = [
-            { wch: 15 },  // 商品编码
-            { wch: 30 },  // 商品名称
-            { wch: 15 },  // 供应商
-            { wch: 10 },  // 成本
-            { wch: 10 },  // 单价
-            { wch: 10 },  // 尺码
-            { wch: 30 },  // 备注
-            { wch: 20 }   // 最后更新时间
-        ];
-        ws['!cols'] = colWidths;
-
-        // 添加工作表到工作簿
-        XLSX.utils.book_append_sheet(wb, ws, '商品数据');
-
-        // 导出文件
-        const now = new Date().toISOString().split('T')[0];
-        XLSX.writeFile(wb, `商品数据_${now}.xlsx`);
-
-        alert('商品数据导出成功！');
-    } catch (error) {
-        console.error('导出商品数据失败:', error);
-        alert('导出失败: ' + error.message);
+    // 添加格式化供应商统计数据的辅助函数
+    function formatSupplierStat(stat) {
+        const grossProfit = stat.totalAmount - stat.totalCost;
+        const profitRate = stat.totalAmount === 0 ? 0 : (grossProfit / stat.totalAmount * 100);
+        
+        return {
+            '供应商': stat.supplier,
+            '订单数': stat.orderCount,
+            '总数量': stat.totalQuantity,
+            '总金额': stat.totalAmount.toFixed(2),
+            '总成本': stat.totalCost.toFixed(2),
+            '毛利': grossProfit.toFixed(2),
+            '毛利率': profitRate.toFixed(2) + '%'
+        };
     }
-}
 
-// 加文件夹关联功能初始化
-function initializeFolderInput() {
-    const folderInput = document.getElementById('folderInput');
-    if (folderInput) {
-        folderInput.addEventListener('change', handleFolderSelect);
-    } else {
-        console.error('找不到 folderInput 元素');
+    // 添加导出商品数据功能
+    function exportProductData() {
+        const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+        
+        if (Object.keys(productData).length === 0) {
+            alert('没有商品数据可导出');
+            return;
+        }
+
+        try {
+            // 将商品数据转换为数组格式
+            const products = Object.values(productData).map(product => ({
+                '商品编码': product.code,
+                '商品名称': product.name || '',
+                '供应商': product.supplier || '',
+                '成本': product.cost || '',
+                '单价': product.price || '',
+                '尺码': product.size || '',
+                '备注': product.remark || '',
+                '最后更新时间': new Date(product.timestamp).toLocaleString()
+            }));
+
+            // 创建工作簿和工作表
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(products);
+
+            // 设置列宽
+            const colWidths = [
+                { wch: 15 },  // 商品编码
+                { wch: 30 },  // 商品名称
+                { wch: 15 },  // 供应商
+                { wch: 10 },  // 成本
+                { wch: 10 },  // 单价
+                { wch: 10 },  // 尺码
+                { wch: 30 },  // 备注
+                { wch: 20 }   // 最后更新时间
+            ];
+            ws['!cols'] = colWidths;
+
+            // 添加工作表到工作簿
+            XLSX.utils.book_append_sheet(wb, ws, '商品数据');
+
+            // 导出文件
+            const now = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `商品数据_${now}.xlsx`);
+
+            alert('商品数据导出成功！');
+        } catch (error) {
+            console.error('导出商品数据失败:', error);
+            alert('导出失败: ' + error.message);
+        }
     }
-}
 
-// 添加一个不显示价格的客户列表
-const hidePriceCustomers = ['客户A', '客户B', '客户C']; // 可以根据需���添加客户名称
+    // 加文件夹关联功能初始化
+    function initializeFolderInput() {
+        const folderInput = document.getElementById('folderInput');
+        if (folderInput) {
+            folderInput.addEventListener('change', handleFolderSelect);
+        } else {
+            console.error('找不到 folderInput 元素');
+        }
+    }
 
-// 修改生成标签的HTML内容
-function generateLabelHTML(labelData) {
-    return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>订单标签</title>
-            <style>
-                @page {
-                    size: A4;
-                    margin: 5mm;
-                }
-                body {
-                    margin: 0;
-                    padding: 2mm;
-                }
-                .label-container {
-                    display: grid;
-                    grid-template-columns: repeat(5, 1fr); /* 5列 */
-                    gap: 1mm;                             /* 减小间距 */
-                    padding: 1mm;
-                }
-                .label {
-                    border: 1px solid #000;
-                    padding: 3px;                         /* 减小内边距 */
-                    break-inside: avoid;
-                    page-break-inside: avoid;
-                    display: flex;
-                    flex-direction: row;
-                    margin-bottom: 1mm;                   /* 减小底部边距 */
-                    font-size: 12px;
-                    height: 55mm;                         /* 调整高度以适应10行 */
-                }
-                .label-image {
-                    width: 50mm;                         /* ���整图片宽度 */
-                    height: 50mm;                        /* 调整图片高度 */
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    border: 1px solid #eee;
-                    background: #f9f9f9;
-                    flex-shrink: 0;
-                }
-                .label-image img {
-                    max-width: 100%;
-                    max-height: 100%;
-                    object-fit: contain;
-                }
-                .label-info {
-                    flex: 1;
-                    font-size: 14px;
-                    padding-left: 3px;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                }
-                .customer-name {
-                    font-size: 16px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 0;
-                    padding: 2px 0;
-                }
-                .details {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 2px;
-                }
-                .details-row {
-                    display: flex;
-                    justify-content: space-around;
-                    align-items: center;
-                    margin: 0;
-                }
-                @media print {
+    // 添加一个不显示价格的客户列表
+    const hidePriceCustomers = ['客户A', '客户B', '客户C']; // 可以根据需要添加客户名称
+
+    // 修改生成标签的HTML内容
+    function generateLabelHTML(labelData) {
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>订单标签</title>
+                <style>
+                    @page {
+                        size: A4;
+                        margin: 5mm;
+                    }
+                    body {
+                        margin: 0;
+                        padding: 2mm;
+                    }
+                    .label-container {
+                        display: grid;
+                        grid-template-columns: repeat(5, 1fr); /* 5列 */
+                        gap: 1mm;                             /* 减小间距 */
+                        padding: 1mm;
+                    }
                     .label {
+                        border: 1px solid #000;
+                        padding: 3px;                         /* 减小内边距 */
                         break-inside: avoid;
                         page-break-inside: avoid;
+                        display: flex;
+                        flex-direction: row;
+                        margin-bottom: 1mm;                   /* 减小底部边距 */
+                        font-size: 12px;
+                        height: 55mm;                         /* 调整高度以适应10行 */
                     }
-                    .no-print {
-                        display: none;
+                    .label-image {
+                        width: 50mm;                         /* 调整图片宽度 */
+                        height: 50mm;                        /* 调整图片高度 */
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border: 1px solid #eee;
+                        background: #f9f9f9;
+                        flex-shrink: 0;
                     }
-                    /* 每50个标签���强制分页 */
-                    .label:nth-child(50) {
-                        page-break-after: always;
+                    .label-image img {
+                        max-width: 100%;
+                        max-height: 100%;
+                        object-fit: contain;
                     }
-                }
-                .print-button {
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    padding: 10px 20px;
-                    background: #4CAF50;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    z-index: 1000;
-                }
-                .print-button:hover {
-                    background: #45a049;
-                }
-            </style>
-        </head>
-        <body>
-            <button onclick="window.print()" class="print-button no-print">打印标签</button>
-            <div class="label-container">
-                ${labelData.map(label => {
-                    // 从localStorage获取最新的客户列表
-                    const hidePriceCustomers = getHidePriceCustomers();
-                    const shouldShowPrice = !hidePriceCustomers.includes(label.客户);
-                    
-                    return `
-                    <div class="label">
-                        <div class="label-image">
-                            <img src="${label._IMAGE_}" 
-                                 alt="商品图片"
-                                 onerror="console.error('图片加载失败'); this.src='${createEmptyImage()}';">
-                        </div>
-                        <div class="label-info">
-                            <div class="customer-name">${label.客户}</div>
-                            <div class="details">
-                                <div class="details-row">
-                                    <span>${label.尺码}</span>
-                                    ${shouldShowPrice ? `<span>${label.单价}</span>` : ''}
+                    .label-info {
+                        flex: 1;
+                        font-size: 14px;
+                        padding-left: 3px;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                    }
+                    .customer-name {
+                        font-size: 16px;
+                        font-weight: bold;
+                        text-align: center;
+                        margin: 0;
+                        padding: 2px 0;
+                    }
+                    .details {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 2px;
+                    }
+                    .details-row {
+                        display: flex;
+                        justify-content: space-around;
+                        align-items: center;
+                        margin: 0;
+                    }
+                    @media print {
+                        .label {
+                            break-inside: avoid;
+                            page-break-inside: avoid;
+                        }
+                        .no-print {
+                            display: none;
+                        }
+                        /* 每50个标签后强制分页 */
+                        .label:nth-child(50) {
+                            page-break-after: always;
+                        }
+                    }
+                    .print-button {
+                        position: fixed;
+                        top: 20px;
+                        right: 20px;
+                        padding: 10px 20px;
+                        background: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        z-index: 1000;
+                    }
+                    .print-button:hover {
+                        background: #45a049;
+                    }
+                </style>
+            </head>
+            <body>
+                <button onclick="window.print()" class="print-button no-print">打印标签</button>
+                <div class="label-container">
+                    ${labelData.map(label => {
+                        // 从localStorage获取最新的客户列表
+                        const hidePriceCustomers = getHidePriceCustomers();
+                        const shouldShowPrice = !hidePriceCustomers.includes(label.客户);
+                        
+                        return `
+                        <div class="label">
+                            <div class="label-image">
+                                <img src="${label._IMAGE_}" 
+                                     alt="商品图片"
+                                     onerror="console.error('图片加载失败'); this.src='${createEmptyImage()}';">
+                            </div>
+                            <div class="label-info">
+                                <div class="customer-name">${label.客户}</div>
+                                <div class="details">
+                                    <div class="details-row">
+                                        <span>${label.尺码}</span>
+                                        ${shouldShowPrice ? `<span>${label.单价}</span>` : ''}
+                                    </div>
+                                    ${label.备注 ? `<div class="details-row">${label.备注}</div>` : ''}
                                 </div>
-                                ${label.备注 ? `<div class="details-row">${label.备注}</div>` : ''}
                             </div>
                         </div>
-                    </div>
-                    `;
-                }).join('')}
-            </div>
-        </body>
-        </html>
-    `;
-}
-
-// 修改生成订单标签功能
-async function generateOrderLabels() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
-    
-    // 过滤当天的订单
-    const dayStart = new Date(exportDate);
-    const dayEnd = new Date(exportDate);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const filteredOrders = Object.values(orderData).filter(order => {
-        const orderDate = new Date(order.timestamp);
-        return orderDate >= dayStart && orderDate < dayEnd;
-    });
-
-    if (filteredOrders.length === 0) {
-        alert(`${exportDate} 没有订单记录`);
-        return;
-    }
-
-    try {
-        console.log('开始生成标签...');
-        // 为每个订单根据数量创建多个标签数据
-        const labelData = await Promise.all(filteredOrders.flatMap(async order => {
-            try {
-                // 获取商品图片
-                console.log('获取图片:', order.code, order.supplier);
-                const imageData = await getImageFromDB(order.code, order.supplier);
-                console.log('获取到的图片数据:', imageData);
-                
-                // 创建数量对应的标签数组
-                const quantity = parseInt(order.quantity) || 1;
-                return Array(quantity).fill().map(() => ({
-                    '_IMAGE_': imageData?.file || createEmptyImage(),
-                    '客户': order.customer || '',
-                    '商品编码': order.code || '',
-                    '尺码': order.size || '',
-                    '单价': order.price || '',
-                    '备注': order.remark || ''
-                }));
-            } catch (error) {
-                console.error('处理单个订单标签失败:', error);
-                return [{
-                    '_IMAGE_': createEmptyImage(),
-                    '客户': order.customer || '',
-                    '商品编码': order.code || '',
-                    '尺码': order.size || '',
-                    '单价': order.price || '',
-                    '备注': order.remark || ''
-                }];
-            }
-        }));
-
-        // 展平标签数组
-        const flattenedLabelData = labelData.flat();
-        console.log('生成标签数据完成，总数:', flattenedLabelData.length);
-
-        // 生成HTML版本的标签（用于打印）
-        const htmlContent = generateLabelHTML(flattenedLabelData);
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-    } catch (error) {
-        console.error('生成标签失败:', error);
-        alert('生成标签失败: ' + error.message);
-    }
-}
-
-// 添加一个获取和保存不显示价格客户列表的函数
-function getHidePriceCustomers() {
-    return JSON.parse(localStorage.getItem('hidePriceCustomers') || '[]');
-}
-
-function saveHidePriceCustomers(customers) {
-    localStorage.setItem('hidePriceCustomers', JSON.stringify(customers));
-}
-
-// 添加管理界面的数
-function openHidePriceManager() {
-    const customers = getHidePriceCustomers();
-    const html = `
-        <div class="edit-form active" id="hidePriceManager">
-            <div class="form-header">
-                <h3>管理不显示价格的客户</h3>
-                <button class="close-btn" onclick="closeHidePriceManager()">×</button>
-            </div>
-            <div style="padding: 20px;">
-                <div style="margin-bottom: 10px;">
-                    <input type="text" id="newCustomer" placeholder="输入客户名称">
-                    <button onclick="addHidePriceCustomer()" class="add-new-btn">添加</button>
+                        `;
+                    }).join('')}
                 </div>
-                <div id="customerList">
-                    ${customers.map(customer => `
-                        <div class="customer-item">
-                            <span>${customer}</span>
-                            <button onclick="removeHidePriceCustomer('${customer}')" class="delete-btn">删除</button>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    `;
-
-    // 移除可能存在的旧实例
-    const oldManager = document.getElementById('hidePriceManager');
-    if (oldManager) {
-        oldManager.remove();
+            </body>
+            </html>
+        `;
     }
 
-    // 添加到页面
-    document.body.insertAdjacentHTML('beforeend', html);
-    const overlay = document.getElementById('overlay');
-    overlay.style.display = 'block';
-    overlay.classList.add('active');
-}
+    // 修改生成订单标签功能
+    async function generateOrderLabels() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
+        
+        // 过滤选择日期的订单
+        const dayStart = new Date(exportDate);
+        dayStart.setHours(0, 0, 0, 0);  // 设置为当天开始时间
+        const dayEnd = new Date(exportDate);
+        dayEnd.setHours(23, 59, 59, 999);  // 设置为当天结束时间
 
-// 关闭管理界面
-function closeHidePriceManager() {
-    const manager = document.getElementById('hidePriceManager');
-    if (manager) {
-        manager.remove();
+        const filteredOrders = Object.values(orderData).filter(order => {
+            const orderDate = new Date(order.timestamp);
+            // 使用本地时间进行比较
+            orderDate.setHours(0, 0, 0, 0);
+            dayStart.setHours(0, 0, 0, 0);
+            return orderDate >= dayStart && orderDate < dayEnd;
+        });
+
+        if (filteredOrders.length === 0) {
+            alert(`${exportDate} 没有订单记录`);
+            return;
+        }
+
+        try {
+            console.log('开始生成标签...');
+            // 为每个订单根据数量创建多个标签数据
+            const labelData = await Promise.all(filteredOrders.flatMap(async order => {
+                try {
+                    // 获取商品图片
+                    console.log('获取图片:', order.code, order.supplier);
+                    const imageData = await getImageFromDB(order.code, order.supplier);
+                    console.log('获取到的图片数据:', imageData);
+                    
+                    // 创建数量对应的标签数组
+                    const quantity = parseInt(order.quantity) || 1;
+                    return Array(quantity).fill().map(() => ({
+                        '_IMAGE_': imageData?.file || createEmptyImage(),
+                        '客户': order.customer || '',
+                        '商品编码': order.code || '',
+                        '尺码': order.size || '',
+                        '单价': order.price || '',
+                        '备注': order.remark || ''
+                    }));
+                } catch (error) {
+                    console.error('处理单个订单标签失败:', error);
+                    return [{
+                        '_IMAGE_': createEmptyImage(),
+                        '客户': order.customer || '',
+                        '商品编码': order.code || '',
+                        '尺码': order.size || '',
+                        '单价': order.price || '',
+                        '备注': order.remark || ''
+                    }];
+                }
+            }));
+
+            // 展平标签数组
+            const flattenedLabelData = labelData.flat();
+            console.log('生成标签数据完成，总数:', flattenedLabelData.length);
+
+            // 生成HTML版本的标签（用于打印）
+            const htmlContent = generateLabelHTML(flattenedLabelData);
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+        } catch (error) {
+            console.error('生成标签失败:', error);
+            alert('生成标签失败: ' + error.message);
+        }
     }
-    const overlay = document.getElementById('overlay');
-    overlay.style.display = 'none';
-    overlay.classList.remove('active');
-}
 
-// 添加客户到不显示价格列表
-function addHidePriceCustomer() {
-    const input = document.getElementById('newCustomer');
-    const customer = input.value.trim();
-    if (customer) {
+    // 添加一个获取和保存不显示价格客户列表的函数
+    function getHidePriceCustomers() {
+        return JSON.parse(localStorage.getItem('hidePriceCustomers') || '[]');
+    }
+
+    function saveHidePriceCustomers(customers) {
+        localStorage.setItem('hidePriceCustomers', JSON.stringify(customers));
+    }
+
+    // 添加管理界面的数
+    function openHidePriceManager() {
         const customers = getHidePriceCustomers();
-        if (!customers.includes(customer)) {
-            customers.push(customer);
+        const html = `
+            <div class="edit-form active" id="hidePriceManager">
+                <div class="form-header">
+                    <h3>管理不显示价格的客户</h3>
+                    <button class="close-btn" onclick="closeHidePriceManager()">×</button>
+                </div>
+                <div style="padding: 20px;">
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="newCustomer" placeholder="输入客户名称">
+                        <button onclick="addHidePriceCustomer()" class="add-new-btn">添加</button>
+                    </div>
+                    <div id="customerList">
+                        ${customers.map(customer => `
+                            <div class="customer-item">
+                                <span>${customer}</span>
+                                <button onclick="removeHidePriceCustomer('${customer}')" class="delete-btn">删除</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 移除可能存在的旧实例
+        const oldManager = document.getElementById('hidePriceManager');
+        if (oldManager) {
+            oldManager.remove();
+        }
+
+        // 添加到页面
+        document.body.insertAdjacentHTML('beforeend', html);
+        const overlay = document.getElementById('overlay');
+        overlay.style.display = 'block';
+        overlay.classList.add('active');
+    }
+
+    // 关闭管理界面
+    function closeHidePriceManager() {
+        const manager = document.getElementById('hidePriceManager');
+        if (manager) {
+            manager.remove();
+        }
+        const overlay = document.getElementById('overlay');
+        overlay.style.display = 'none';
+        overlay.classList.remove('active');
+    }
+
+    // 添加客户到不显示价格列表
+    function addHidePriceCustomer() {
+        const input = document.getElementById('newCustomer');
+        const customer = input.value.trim();
+        if (customer) {
+            const customers = getHidePriceCustomers();
+            if (!customers.includes(customer)) {
+                customers.push(customer);
+                saveHidePriceCustomers(customers);
+                openHidePriceManager(); // 刷新显示
+            }
+            input.value = '';
+        }
+    }
+
+    // 不显示格列表中移除客户
+    function removeHidePriceCustomer(customer) {
+        const customers = getHidePriceCustomers();
+        const index = customers.indexOf(customer);
+        if (index > -1) {
+            customers.splice(index, 1);
             saveHidePriceCustomers(customers);
             openHidePriceManager(); // 刷新显示
         }
-        input.value = '';
-    }
-}
-
-// 从不显示价格列表中移除客户
-function removeHidePriceCustomer(customer) {
-    const customers = getHidePriceCustomers();
-    const index = customers.indexOf(customer);
-    if (index > -1) {
-        customers.splice(index, 1);
-        saveHidePriceCustomers(customers);
-        openHidePriceManager(); // 刷新显示
-    }
-}
-
-// 添加清除当天订单数据的功能
-async function clearTodayOrders() {
-    const password = prompt('请输入管理员密码:');
-    
-    // 验证密码
-    if (password !== '900910') {
-        alert('密码错误！');
-        return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    if (!confirm(`确要清除 ${today} 的订单数据吗？此操作不可恢复！`)) {
-        return;
-    }
-
-    try {
-        // 获取订单数据
-        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-        
-        // 获取今天的开始和结束时间
-        const dayStart = new Date(today);
-        const dayEnd = new Date(today);
-        dayEnd.setDate(dayEnd.getDate() + 1);
-
-        // 过滤掉今天的订单
-        const filteredOrders = {};
-        let removedCount = 0;
-        
-        Object.entries(orderData).forEach(([id, order]) => {
-            const orderDate = new Date(order.timestamp);
-            if (orderDate < dayStart || orderDate >= dayEnd) {
-                filteredOrders[id] = order;
-            } else {
-                removedCount++;
+    // 修改编辑尺码的函数
+    function editSize(uniqueId, currentSize) {
+        const newSize = prompt('请输入新尺码:', currentSize);
+        if (newSize !== null) {  // 用户点击了确定
+            const productData = JSON.parse(localStorage.getItem('productData') || '{}'); // 删除多余右括号
+            if (productData[uniqueId]) {
+                productData[uniqueId].size = newSize;
+                productData[uniqueId].timestamp = new Date().toISOString();
+                localStorage.setItem('productData', JSON.stringify(productData));
+                
+                // 更新显示
+                updateRecordManager();
+                updateImageGrid();
             }
+        }
+    }
+
+    // 修改供应商报货表函数
+    async function exportSupplierOrder() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
+        
+        // 过滤选择日期的订单
+        const dayStart = new Date(exportDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(exportDate);
+        dayEnd.setHours(23, 59, 59, 999);
+
+        const filteredOrders = Object.values(orderData).filter(order => {
+            const orderDate = new Date(order.timestamp);
+            orderDate.setHours(0, 0, 0, 0);
+            dayStart.setHours(0, 0, 0, 0);
+            return orderDate >= dayStart && orderDate < dayEnd;
         });
 
-        // 保存过滤后的订单数据
-        localStorage.setItem('orderData', JSON.stringify(filteredOrders));
-        
-        // 更显示
-        updateRecentRecords();
-        
-        alert(`清除完成！共删除 ${removedCount} 条订单数据。`);
-    } catch (error) {
-        console.error('清除订单数据失败:', error);
-        alert('除订单数据失败: ' + error.message);
-    }
-}
-
-// 修改编辑尺码的函数
-function editSize(uniqueId, currentSize) {
-    const newSize = prompt('请输入新的尺码:', currentSize);
-    if (newSize !== null) {  // 用户点击了确定
-        const productData = JSON.parse(localStorage.getItem('productData') || '{}'); // 删除多余的右括号
-        if (productData[uniqueId]) {
-            productData[uniqueId].size = newSize;
-            productData[uniqueId].timestamp = new Date().toISOString();
-            localStorage.setItem('productData', JSON.stringify(productData));
-            
-            // 更新显示
-            updateRecordManager();
-            updateImageGrid();
+        if (filteredOrders.length === 0) {
+            alert(`${exportDate} 没有订单记录`);
+            return;
         }
-    }
-}
 
-// 修改供应商报货表函数
-async function exportSupplierOrder() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
-    
-    // 过滤当天的单
-    const dayStart = new Date(exportDate);
-    const dayEnd = new Date(exportDate);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-
-    const filteredOrders = Object.values(orderData).filter(order => {
-        const orderDate = new Date(order.timestamp);
-        return orderDate >= dayStart && orderDate < dayEnd;
-    });
-
-    if (filteredOrders.length === 0) {
-        alert(`${exportDate} 没有订单记录`);
-        return;
-    }
-
-    // 按供应商和商品编码分组统计
-    const supplierOrders = {};
-    filteredOrders.forEach(order => {
-        const supplier = order.supplier || '未知供应商';
-        if (!supplierOrders[supplier]) {
-            supplierOrders[supplier] = {};
-        }
-        
-        const code = order.code;
-        if (!supplierOrders[supplier][code]) {
-            supplierOrders[supplier][code] = {
-                code: code,
-                name: order.name || '',
-                sizes: {},
-                total: 0,
-                supplier: supplier
-            };
-        }
-        
-        const size = order.size || '-';
-        if (!supplierOrders[supplier][code].sizes[size]) {
-            supplierOrders[supplier][code].sizes[size] = 0;
-        }
-        
-        supplierOrders[supplier][code].sizes[size] += Number(order.quantity) || 0;
-        supplierOrders[supplier][code].total += Number(order.quantity) || 0;
-    });
-
-    // 生成报表HTML
-    const reportContent = document.querySelector('.report-content');
-    reportContent.innerHTML = '';
-
-    // 为每个供应商创建部分
-    for (const [supplier, products] of Object.entries(supplierOrders)) {
-        const supplierSection = document.createElement('div');
-        supplierSection.className = 'supplier-section';
-        
-        supplierSection.innerHTML = `
-            <div class="supplier-title">${supplier}</div>
-            <div class="product-grid"></div>
+        // 生成HTML内容
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>供应商报货表 - ${exportDate}</title>
+                <style>
+                    body { font-family: Arial; padding: 20px; }
+                    .supplier-section { margin-bottom: 30px; }
+                    .supplier-title { 
+                        font-size: 18px; 
+                        font-weight: bold;
+                        padding: 10px;
+                        background: #f5f5f5;
+                        margin-bottom: 15px;
+                    }
+                    .product-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                        gap: 15px;
+                    }
+                    .product-card {
+                        border: 1px solid #ddd;
+                        padding: 10px;
+                        border-radius: 4px;
+                    }
+                    .product-image {
+                        width: 100%;
+                        height: 200px;
+                        object-fit: contain;
+                        margin-bottom: 10px;
+                    }
+                    .product-name {
+                        font-weight: bold;
+                        margin: 5px 0;
+                    }
+                    .product-code {
+                        color: #666;
+                        font-size: 12px;
+                    }
+                    .size-grid {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 5px;
+                        margin-top: 10px;
+                    }
+                    .size-item {
+                        background: #f0f0f0;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                        font-size: 13px;
+                    }
+                </style>
+            </head>
+            <body>
+                ${await generateSupplierOrderHTML(filteredOrders)}
+            </body>
+            </html>
         `;
 
-        const productGrid = supplierSection.querySelector('.product-grid');
+        // 在新标签页中打开
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
 
-        for (const product of Object.values(products)) {
-            const productCard = document.createElement('div');
-            productCard.className = 'product-card';
+    // 修改生成供应商报货表HTML辅助函数
+    async function generateSupplierOrderHTML(filteredOrders) {
+        // 按供应商和商品编码分组统计
+        const supplierOrders = {};
+        let totalAllQuantity = 0; // 所有商品总数
 
-            // 获取商品图片
-            let imageUrl = '';
-            try {
-                const imageData = await getImageFromDB(product.code, product.supplier);
-                imageUrl = imageData?.file || '';
-            } catch (error) {
-                console.error('获取图片失败:', error);
+        filteredOrders.forEach(order => {
+            const supplier = order.supplier || '未知供应商';
+            if (!supplierOrders[supplier]) {
+                supplierOrders[supplier] = {
+                    products: {},
+                    totalQuantity: 0 // 该供应商的总数
+                };
+            }
+            
+            const code = order.code;
+            if (!supplierOrders[supplier].products[code]) {
+                supplierOrders[supplier].products[code] = {
+                    code: code,
+                    name: order.name || '',
+                    sizes: {},
+                    total: 0,
+                    supplier: supplier
+                };
+            }
+            
+            const size = order.size || '-';
+            if (!supplierOrders[supplier].products[code].sizes[size]) {
+                supplierOrders[supplier].products[code].sizes[size] = 0;
+            }
+            
+            const quantity = Number(order.quantity) || 0;
+            supplierOrders[supplier].products[code].sizes[size] += quantity;
+            supplierOrders[supplier].products[code].total += quantity;
+            supplierOrders[supplier].totalQuantity += quantity;
+            totalAllQuantity += quantity;
+        });
+
+        // 生成HTML内容
+        let html = '';
+        for (const [supplier, data] of Object.entries(supplierOrders)) {
+            html += `
+                <div class="supplier-section">
+                    <div class="supplier-title">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <span>${supplier}</span>
+                                <span style="
+                                    background: #1976D2; 
+                                    color: white; 
+                                    padding: 4px 12px; 
+                                    border-radius: 15px; 
+                                    font-size: 14px;
+                                ">报货数量: ${data.totalQuantity}</span>
+                            </div>
+                            <div style="display: flex; gap: 10px; font-size: 14px; color: #666;">
+                                <span>商品种类: ${Object.keys(data.products).length}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="product-grid">
+            `;
+
+            for (const product of Object.values(data.products)) {
+                // 获取商品图片
+                let imageUrl = '';
+                try {
+                    const imageData = await getImageFromDB(product.code, product.supplier);
+                    imageUrl = imageData?.file || '';
+                } catch (error) {
+                    console.error('获取图片失败:', error);
+                }
+
+                // 获取所有尺码并排序
+                const sizes = Object.entries(product.sizes).sort((a, b) => {
+                    const numA = parseFloat(a[0]);
+                    const numB = parseFloat(b[0]);
+                    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                    return a[0].localeCompare(b[0]);
+                });
+
+                html += `
+                    <div class="product-card">
+                        <img src="${imageUrl}" class="product-image" onerror="this.src='placeholder.png'">
+                        <div class="product-name">${product.name || ''}</div>
+                        <div class="product-code">
+                            <span>${product.code}</span>
+                            <span style="
+                                float: right; 
+                                background: #f5f5f5; 
+                                padding: 2px 8px; 
+                                border-radius: 10px; 
+                                color: #1976D2;
+                                font-weight: bold;
+                            ">数量: ${product.total}</span>
+                        </div>
+                        <div class="size-grid">
+                            ${sizes.map(([size, quantity]) => `
+                                <div class="size-item">${size}×${quantity}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
             }
 
-            // 获取所有尺码并排序
-            const sizes = Object.entries(product.sizes).sort((a, b) => {
-                const numA = parseFloat(a[0]);
-                const numB = parseFloat(b[0]);
-                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-                return a[0].localeCompare(b[0]);
-            });
-
-            // 生成尺码网格HTML
-            const sizeGridHTML = sizes.map(([size, quantity]) => `
-                <div class="size-item">
-                    ${size}×${quantity}
-                </div>
-            `).join('');
-
-            // 修改生成商品卡片的HTML部分
-            productCard.innerHTML = `
-                <div class="product-image-container">
-                    <img src="${imageUrl}" class="product-image" onerror="this.src='placeholder.png'">
-                    <div class="product-name">${product.name || 'Air Force 1 Low'}</div>
-                    <div class="product-code">${product.code}</div>
-                </div>
-                <div class="product-info">
-                    <div class="size-grid">
-                        ${sizeGridHTML}
+            html += `
                     </div>
                 </div>
             `;
-
-            productGrid.appendChild(productCard);
         }
 
-        reportContent.appendChild(supplierSection);
+        // 添加总计
+        html = `
+            <div style="
+                margin-bottom: 20px; 
+                padding: 15px; 
+                background: #1976D2; 
+                color: white; 
+                border-radius: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            ">
+                <div style="font-size: 16px;">
+                <strong>所有商品总数量：${totalAllQuantity}</strong>
+                </div>
+                <div style="font-size: 14px;">
+                    供应商数量��${Object.keys(supplierOrders).length}
+                </div>
+            </div>
+        ` + html;
+
+        return html;
     }
 
-    // 显示报表
-    document.getElementById('supplierOrderReport').classList.add('active');
-}
-
-// 添加关闭报表的函数
-function closeSupplierReport() {
-    document.getElementById('supplierOrderReport').classList.remove('active');
-}
-
-// 修改图片预览功能
-function initializeNewItemImageUpload() {
-    const imageInput = document.getElementById('newItemImage');
-    const preview = document.getElementById('newItemPreview');
-    const codeInput = document.getElementById('newItemCode');
-    const supplierInput = document.getElementById('newItemSupplier');
-    
-    imageInput.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+    // 修改图片预览功能
+    function initializeNewItemImageUpload() {
+        const imageInput = document.getElementById('newItemImage');
+        const preview = document.getElementById('newItemPreview');
+        const codeInput = document.getElementById('newItemCode');
+        const supplierInput = document.getElementById('newItemSupplier');
         
-        if (!file.type.startsWith('image/')) {
-            alert('请选择图片文件');
-            return;
-        }
-        
-        try {
-            // 从文件名中提取商品编码（去掉扩展名）
-            const code = file.name.split('.')[0];
-            codeInput.value = code;
+        imageInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
             
-            // 压缩图片
-            const compressedImageUrl = await compressImage(file);
-            preview.src = compressedImageUrl;
-            preview.style.display = 'block';
-            
-            // 如果已存在该商品编码，自动填充其他信息，但���留当前供应商
-            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
-            const matchingProducts = Object.values(productData).filter(p => p.code === code);
-            
-            if (matchingProducts.length > 0) {
-                const product = matchingProducts[0];
-                document.getElementById('newItemName').value = product.name || '';
-                document.getElementById('newItemCost').value = product.cost || '';
-                document.getElementById('newItemPrice').value = product.price || '';
-                document.getElementById('newItemSize').value = product.size || '';
-                document.getElementById('newItemRemark').value = product.remark || '';
-                
-                // 只在供应商字段为空时才填充供应商信息
-                if (!supplierInput.value) {
-                    supplierInput.value = product.supplier || '';
-                }
-            }
-        } catch (error) {
-            console.error('图片处理失败:', error);
-            alert('��片处理失败���请重试');
-        }
-    });
-}
-
-// 修改开单相关函数
-function openOrderForm(product) {
-    const orderForm = document.getElementById('orderForm');
-    
-    console.log('Opening order form with product:', product); // 添加调试日志
-    
-    // 填充商品信息
-    document.getElementById('orderCode').value = product.code || '';
-    document.getElementById('orderName').value = product.name || '';
-    document.getElementById('orderSupplier').value = product.supplier || '';
-    document.getElementById('orderCost').value = product.cost || '';
-    document.getElementById('orderPrice').value = product.price || '';
-    document.getElementById('orderSize').value = product.size || '';
-    
-    // 聚焦到客户输入框
-    document.getElementById('orderCustomer').focus();
-    
-    // 显示表单
-    orderForm.style.display = 'block';
-}
-
-// 修改关闭开单表单函数
-function closeOrderForm() {
-    const orderForm = document.getElementById('orderForm');
-    orderForm.style.display = 'none';
-}
-
-// 修改初始化开单表单函数
-function initializeOrderForm() {
-    const orderForm = document.getElementById('createOrderForm');
-    if (orderForm) {
-        orderForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const order = {
-                id: Date.now().toString(),
-                code: document.getElementById('orderCode').value,
-                name: document.getElementById('orderName').value,
-                supplier: document.getElementById('orderSupplier').value,
-                cost: document.getElementById('orderCost').value,
-                price: document.getElementById('orderPrice').value,
-                customer: document.getElementById('orderCustomer').value,
-                size: document.getElementById('orderSize').value,
-                quantity: document.getElementById('orderQuantity').value,
-                remark: document.getElementById('orderRemark').value,
-                timestamp: new Date().toISOString(),
-                username: localStorage.getItem('username')
-            };
-
-            if (!order.customer || !order.size) {
-                alert('请填写客户和尺码');
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
                 return;
             }
             
             try {
-                // 使用 firebase.database()
-                const dbRef = firebase.database().ref('orders/' + order.id);
-                await dbRef.set(order);
+                // 从文件名中提取商品编码（去掉扩展名）
+                const code = file.name.split('.')[0];
+                codeInput.value = code;
                 
-                // 清空表单
-                document.getElementById('orderCustomer').value = '';
-                document.getElementById('orderSize').value = '';
-                document.getElementById('orderQuantity').value = '1';
-                document.getElementById('orderRemark').value = '';
+                // 压缩图片
+                const compressedImageUrl = await compressImage(file);
+                preview.src = compressedImageUrl;
+                preview.style.display = 'block';
                 
-                // 聚焦到客户输入框
-                document.getElementById('orderCustomer').focus();
+                // 如果已存在该商品编码，自动填充其他信息，但保留当前供应商
+                const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+                const matchingProducts = Object.values(productData).filter(p => p.code === code);
                 
-                console.log('订单保存成功:', order);
-            } catch (error) {
-                console.error('保存订单失败:', error);
-                alert('保存订单失败: ' + error.message);
-            }
-        });
-    }
-    
-    // 初始化时显示最近订单
-    updateRecentOrders();
-}
-
-// 在页面加载时初始化开单表单
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // ... 其他初始化代码 ...
-        
-        // 初始化开单表单
-        initializeOrderForm();
-        
-        // 显示开单窗口
-        const orderForm = document.getElementById('orderForm');
-        if (orderForm) {
-            orderForm.style.display = 'block';
-        }
-        
-        // ... 其他初始化代 ...
-    } catch (error) {
-        console.error('系统初始化失败:', error);
-        alert('系统初始化失败，请查看控制台了解详细信息');
-    }
-});
-
-// 修改最近订单显示函数
-function updateRecentOrders() {
-    const username = localStorage.getItem('username');
-    
-    // 使用 window.firebase
-    window.firebase.database().ref('orders')
-        .orderByChild('timestamp')
-        .limitToLast(10)
-        .on('value', (snapshot) => {
-            const orders = [];
-            snapshot.forEach((child) => {
-                const order = child.val();
-                if (order.username === username) {
-                    orders.unshift(order);
-                }
-            });
-
-            const recentOrdersList = document.getElementById('recentOrdersList');
-            if (recentOrdersList) {
-                recentOrdersList.innerHTML = orders.map(order => `
-                    <div class="recent-order-item">
-                        <div class="order-main-info">
-                            <span class="order-customer">${order.customer || '未填写'}</span>
-                            <span class="order-code">${order.code}</span>
-                        </div>
-                        <div class="order-second-line">
-                            <span class="order-size">${order.size || '-'}</span>
-                            <div class="order-quantity-price">
-                                <span>${order.quantity}件</span>
-                                <span class="order-price">${order.price || '-'}</span>
-                            </div>
-                            <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        });
-}
-
-// 添加点击事件监听器
-document.addEventListener('DOMContentLoaded', function() {
-    const recentOrdersHeader = document.querySelector('.recent-orders-header h4');
-    if (recentOrdersHeader) {
-        recentOrdersHeader.addEventListener('click', openAllOrders);
-    }
-});
-
-// 添加更新订单字段的函数
-function updateOrderField(orderId, field, value) {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    if (orderData[orderId]) {
-        orderData[orderId][field] = value.trim();
-        localStorage.setItem('orderData', JSON.stringify(orderData));
-        // 不需要重新渲染整个列表，因为内容已经更新
-    }
-}
-
-// 修改打开所有订单记录的函数
-function openAllOrders() {
-    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-    const orders = Object.values(orderData)
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>所有订单记录</title>
-            <style>
-                body { 
-                    font-family: Arial; 
-                    padding: 20px; 
-                }
-                .order-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 15px;
-                    padding: 10px;
-                    border-bottom: 1px solid #eee;
-                }
-                .order-item:hover {
-                    background: #f5f5f5;
-                }
-                [contenteditable="true"] {
-                    cursor: text;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                }
-                [contenteditable="true"]:hover {
-                    background: #f0f0f0;
-                }
-                [contenteditable="true"]:focus {
-                    background: #fff;
-                    outline: 2px solid #2196F3;
-                    outline-offset: -2px;
-                }
-                .customer { 
-                    font-weight: bold; 
-                    width: 100px;
-                }
-                .code { width: 120px; }
-                .name { width: 150px; }
-                .size { 
-                    width: 60px;
-                    text-align: center;
-                }
-                .quantity { 
-                    width: 60px;
-                    text-align: center;
-                }
-                .price {
-                    color: #f44336;
-                    font-weight: bold;
-                    width: 80px;
-                    text-align: right;
-                }
-                .supplier { width: 100px; }
-                .time { 
-                    color: #666;
-                    width: 150px;
-                }
-                .header {
-                    font-weight: bold;
-                    padding: 10px;
-                    border-bottom: 2px solid #333;
-                    background: #f5f5f5;
-                    position: sticky;
-                    top: 0;
-                }
-            </style>
-            <script>
-                function updateField(orderId, field, value) {
-                    const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
-                    if (orderData[orderId]) {
-                        orderData[orderId][field] = value.trim();
-                        localStorage.setItem('orderData', JSON.stringify(orderData));
+                if (matchingProducts.length > 0) {
+                    const product = matchingProducts[0];
+                    document.getElementById('newItemName').value = product.name || '';
+                    document.getElementById('newItemCost').value = product.cost || '';
+                    document.getElementById('newItemPrice').value = product.price || '';
+                    document.getElementById('newItemSize').value = product.size || '';
+                    document.getElementById('newItemRemark').value = product.remark || '';
+                    
+                    // 只在供应商字段为空时才填充供应商信息
+                    if (!supplierInput.value) {
+                        supplierInput.value = product.supplier || '';
                     }
                 }
-            </script>
-        </head>
-        <body>
-            <div class="order-item header">
-                <span class="customer">客户</span>
-                <span class="code">商品编码</span>
-                <span class="name">商品名称</span>
-                <span class="size">尺码</span>
-                <span class="quantity">数量</span>
-                <span class="price">单价</span>
-                <span class="supplier">供应商</span>
-                <span class="time">时间</span>
-            </div>
-            ${orders.map(order => `
-                <div class="order-item">
-                    <span class="customer" contenteditable="true" onblur="updateField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
-                    <span class="code">${order.code}</span>
-                    <span class="name" contenteditable="true" onblur="updateField('${order.id}', 'name', this.textContent)">${order.name || '-'}</span>
-                    <span class="size" contenteditable="true" onblur="updateField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
-                    <span class="quantity" contenteditable="true" onblur="updateField('${order.id}', 'quantity', this.textContent)">${order.quantity}</span>
-                    <span class="price" contenteditable="true" onblur="updateField('${order.id}', 'price', this.textContent)">${order.price || '-'}</span>
-                    <span class="supplier" contenteditable="true" onblur="updateField('${order.id}', 'supplier', this.textContent)">${order.supplier || '-'}</span>
-                    <span class="time">${new Date(order.timestamp).toLocaleString()}</span>
-                </div>
-            `).join('')}
-        </body>
-        </html>
-    `;
+            } catch (error) {
+                console.error('图片处理失败:', error);
+                alert('图片处理失败，请重试');
+            }
+        });
+    }
 
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 100);
-}
+    // 修改开单相关函数
+    function openOrderForm(product) {
+        const orderForm = document.getElementById('orderForm');
+        
+        console.log('Opening order form with product:', product); // 添加调试日志
+        
+        // 填充商品信息
+        document.getElementById('orderCode').value = product.code || '';
+        document.getElementById('orderName').value = product.name || '';
+        document.getElementById('orderSupplier').value = product.supplier || '';
+        document.getElementById('orderCost').value = product.cost || '';
+        document.getElementById('orderPrice').value = product.price || '';
+        document.getElementById('orderSize').value = '';  // 始终设置为空
+        
+        // 聚焦到尺码输入框
+        document.getElementById('orderSize').focus();
+        
+        // 显示表单
+        orderForm.style.display = 'block';
+    }
+
+    // 修改关闭开单表单函数
+    function closeOrderForm() {
+        const orderForm = document.getElementById('orderForm');
+        orderForm.style.display = 'none';
+    }
+
+    // 修改初始化开单表单函数
+    function initializeOrderForm() {
+        const orderForm = document.getElementById('createOrderForm');
+        if (!orderForm) {
+            console.error('找不到开单表单元素');
+            return;
+        }
+
+        // 移除可能存在的旧事件监听器
+        const newOrderForm = orderForm.cloneNode(true);
+        orderForm.parentNode.replaceChild(newOrderForm, orderForm);
+
+        // 添加新的事件监听器
+        newOrderForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+            
+            // 获取并验证客户名称
+            const customer = document.getElementById('orderCustomer').value.trim();
+            const code = document.getElementById('orderCode').value.trim();
+            const size = document.getElementById('orderSize').value.trim();
+            const quantity = document.getElementById('orderQuantity').value.trim();
+
+            // 调试输出
+            console.log('提交订单:', {
+                customer,
+                code,
+                size,
+                quantity,
+                formElement: document.getElementById('orderCustomer'),
+                formValue: document.getElementById('orderCustomer').value
+            });
+
+            // 验证必填字段
+            if (!customer) {
+                alert('请填写客户名称');
+                document.getElementById('orderCustomer').focus();
+                return;
+            }
+
+            if (!code || !size || !quantity) {
+                alert('请填写完整的订单信息');
+                return;
+            }
+
+            // 如果验证通过，保存订单
+            saveOrder();
+        });
+
+        // 初始化时显示最近订单
+        updateRecentOrders();
+
+        console.log('订单表单初始化完成');
+    }
+
+    // 在页面加载时初始化开单表单
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            // ... 其他初始化代码 ...
+            
+            // 始化开单表单
+            initializeOrderForm();
+            
+            // 显示开单窗口
+            const orderForm = document.getElementById('orderForm');
+            if (orderForm) {
+                orderForm.style.display = 'block';
+            }
+            
+            // ... 其他初始化代 ...
+        } catch (error) {
+            console.error('系统初始化失败:', error);
+            alert('系统初始化失败，请查看控制台了解详细信息');
+        }
+    });
+
+    // 修改最近订单显示函数
+    function updateRecentOrders() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const recentOrdersList = document.getElementById('recentOrdersList');
+        
+        // 获取最近的10个订单
+        const recentOrders = Object.values(orderData)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .slice(0, 10);
+
+        recentOrdersList.innerHTML = recentOrders.map(order => `
+            <div class="recent-order-item ${order.isNewImport ? 'new-import' : ''}">
+                <div class="order-main-info">
+                    <span class="order-customer" contenteditable="true" 
+                          onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
+                    <div class="order-code-name">
+                        <span class="order-code">${order.code}</span>
+                        <span class="order-name">${order.name || ''}</span>
+                    </div>
+                </div>
+                <div class="order-second-line">
+                    <span class="order-size" contenteditable="true" 
+                          onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
+                    <div class="order-quantity-price">
+                        <span>${order.quantity}件</span>
+                        <span class="order-price" contenteditable="true" 
+                              onblur="updateOrderField('${order.id}', 'price', this.textContent)">¥${order.price || '-'}</span>
+                    </div>
+                    <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 添加点击事件监听器
+    document.addEventListener('DOMContentLoaded', function() {
+        const recentOrdersHeader = document.querySelector('.recent-orders-header h4');
+        if (recentOrdersHeader) {
+            recentOrdersHeader.addEventListener('click', openAllOrders);
+        }
+    });
+
+    // 添加更新订单字段的函数
+    function updateOrderField(orderId, field, value) {
+        try {
+            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+            if (orderData[orderId]) {
+                // 根据字段类型进行适当的处理
+                if (field === 'quantity') {
+                    // 移除数量前的 '×' 符号并确保是数字
+                    value = value.replace(/[×x]/i, '').trim();
+                    // 确保数量是正整数
+                    const num = parseInt(value);
+                    if (isNaN(num) || num < 1) {
+                        alert('请输入有效的数量');
+                        location.reload(); // 重新加载以恢复原值
+                        return;
+                    }
+                    orderData[orderId][field] = num;
+                } else if (field === 'price') {
+                    // 移除价格中的 '¥' 符号
+                    value = value.replace('¥', '').trim();
+                    orderData[orderId][field] = value;
+                } else {
+                    // 其他字段直接保存
+                    orderData[orderId][field] = value.trim();
+                }
+                
+                localStorage.setItem('orderData', JSON.stringify(orderData));
+                
+                // 通知父窗口更新
+                if (window.opener && !window.opener.closed) {
+                    window.opener.updateRecentOrders();
+                }
+            }
+        } catch (error) {
+            console.error('更新订单失败:', error);
+            alert('更新订单失败: ' + error.message);
+        }
+    }
+
+    // 修改打开所有订单记录的函数
+    function openAllOrders() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
+        
+        const dayStart = new Date(exportDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(exportDate);
+        dayEnd.setHours(23, 59, 59, 999);
+        
+        const orders = Object.values(orderData)
+            .filter(order => {
+                const orderDate = new Date(order.timestamp);
+                orderDate.setHours(0, 0, 0, 0);
+                return orderDate >= dayStart && orderDate < dayEnd;
+            })
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // 移除多余的括号
+
+        if (orders.length === 0) {
+            alert(`${exportDate} 没有订单记录`);
+            return;
+        }
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${exportDate} 订单记录</title>
+                <style>
+                    body { 
+                        font-family: Arial; 
+                        padding: 20px;
+                        max-width: 1200px;
+                        margin: 0 auto;
+                    }
+                    .order-list {
+                        margin-top: 20px;
+                    }
+                    .order-item {
+                        display: flex;
+                        align-items: center;
+                        padding: 15px;
+                        border-bottom: 1px solid #eee;
+                        gap: 20px;
+                    }
+                    .order-item:hover {
+                        background: #f8f9fa;
+                    }
+                    .customer {
+                        min-width: 120px;
+                        font-weight: bold;
+                    }
+                    .product-info {
+                        flex: 1;
+                        display: flex;
+                        gap: 15px;
+                        align-items: center;
+                    }
+                    .code {
+                        color: #1976D2;
+                        font-family: monospace;
+                        min-width: 100px;
+                    }
+                    .name {
+                        color: #666;
+                        flex: 1;
+                    }
+                    .size {
+                        background: #f5f5f5;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                        min-width: 60px;
+                        text-align: center;
+                    }
+                    .quantity {
+                        min-width: 60px;
+                        text-align: center;
+                    }
+                    .price {
+                        color: #f44336;
+                        font-weight: bold;
+                        min-width: 80px;
+                        text-align: right;
+                    }
+                    .time {
+                        color: #999;
+                        min-width: 100px;
+                        text-align: right;
+                    }
+                    .search-bar {
+                        margin: 20px 0;
+                        padding: 10px;
+                        background: #f8f9fa;
+                        border-radius: 4px;
+                    }
+                    .search-input {
+                        width: 100%;
+                        padding: 8px;
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                        font-size: 14px;
+                    }
+                    .delete-btn {
+                        padding: 4px 8px;
+                        background: #ff4444;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    }
+                    .delete-btn:hover {
+                        background: #cc0000;
+                    }
+                    /* 添加可编辑元素的样式 */
+                    .editable {
+                        cursor: text;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        min-width: 30px;
+                    }
+                    .editable:hover {
+                        background: #f0f0f0;
+                    }
+                    .editable:focus {
+                        background: #fff;
+                        outline: 2px solid #2196F3;
+                        outline-offset: -2px;
+                    }
+
+                    /* 添加选择框样式 */
+                    .select-checkbox {
+                        width: 18px;
+                        height: 18px;
+                        margin-right: 10px;
+                        cursor: pointer;
+                    }
+
+                    .batch-actions {
+                        position: fixed;
+                        bottom: 20px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: white;
+                        padding: 10px 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                        display: none;
+                        align-items: center;
+                        gap: 10px;
+                        z-index: 1000;
+                    }
+
+                    .batch-actions.active {
+                        display: flex;
+                    }
+
+                    .batch-delete-btn {
+                        background: #ff4444;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    }
+
+                    .batch-cancel-btn {
+                        background: #999;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    }
+
+                    .select-all-checkbox {
+                        margin-right: 10px;
+                    }
+                </style>
+                <script>
+                    function searchOrders() {
+                        const searchText = document.getElementById('searchInput').value.toLowerCase();
+                        const orders = document.querySelectorAll('.order-item');
+                        
+                        orders.forEach(order => {
+                            const text = order.textContent.toLowerCase();
+                            order.style.display = text.includes(searchText) ? '' : 'none';
+                        });
+                    }
+
+                    function deleteOrder(orderId) {
+                        if (confirm('确定要删除这条订单记录吗？')) {
+                            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+                            delete orderData[orderId];
+                            localStorage.setItem('orderData', JSON.stringify(orderData));
+                            
+                            // 通知父窗口更新
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.updateRecentOrders();
+                            }
+                            
+                            // 刷新当前页面
+                            location.reload();
+                        }
+                    }
+
+                    // 添加更新订单字段的函数
+                    function updateOrderField(orderId, field, value) {
+                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+                        if (orderData[orderId]) {
+                            if (field === 'price') {
+                                value = value.replace('¥', '').trim();
+                            }
+                            orderData[orderId][field] = value.trim();
+                            localStorage.setItem('orderData', JSON.stringify(orderData));
+                            
+                            // 通知父窗口更新
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.updateRecentOrders();
+                            }
+                        }
+                    }
+
+                    // 添加选择相关的函数
+                    let selectedOrders = new Set();
+
+                    function toggleSelect(orderId, checkbox) {
+                        if (checkbox.checked) {
+                            selectedOrders.add(orderId);
+                        } else {
+                            selectedOrders.delete(orderId);
+                        }
+                        updateBatchActions();
+                    }
+
+                    function toggleSelectAll(checkbox) {
+                        const allCheckboxes = document.querySelectorAll('.select-checkbox');
+                        allCheckboxes.forEach(cb => {
+                            cb.checked = checkbox.checked;
+                            const orderId = cb.getAttribute('data-id');
+                            if (checkbox.checked) {
+                                selectedOrders.add(orderId);
+                            } else {
+                                selectedOrders.delete(orderId);
+                            }
+                        });
+                        updateBatchActions();
+                    }
+
+                    function updateBatchActions() {
+                        const batchActions = document.querySelector('.batch-actions');
+                        if (selectedOrders.size > 0) {
+                            batchActions.classList.add('active');
+                            batchActions.querySelector('.count').textContent = 
+                                \`已选择 \${selectedOrders.size} 项\`;
+                        } else {
+                            batchActions.classList.remove('active');
+                        }
+                    }
+
+                    function clearSelection() {
+                        selectedOrders.clear();
+                        const allCheckboxes = document.querySelectorAll('.select-checkbox');
+                        allCheckboxes.forEach(cb => cb.checked = false);
+                        document.querySelector('.select-all-checkbox').checked = false;
+                        updateBatchActions();
+                    }
+
+                    function batchDeleteOrders() {
+                        if (!confirm(\`确定要删除选中的 \${selectedOrders.size} 条订单吗？\`)) {
+                            return;
+                        }
+
+                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+                        selectedOrders.forEach(orderId => {
+                            delete orderData[orderId];
+                        });
+                        localStorage.setItem('orderData', JSON.stringify(orderData));
+
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.updateRecentOrders();
+                        }
+                        location.reload();
+                    }
+                </script>
+            </head>
+            <body>
+                <h2>${exportDate} 订单记录</h2>
+                <div class="search-bar">
+                    <input type="checkbox" class="select-all-checkbox" 
+                           onclick="toggleSelectAll(this)">
+                    <input type="text" 
+                           id="searchInput" 
+                           class="search-input" 
+                           placeholder="搜索客户、商品编码、商品名称..." 
+                           oninput="searchOrders()">
+                </div>
+                <div class="order-list">
+                    ${orders.map(order => `
+                        <div class="order-item">
+                            <input type="checkbox" 
+                                   class="select-checkbox" 
+                                   data-id="${order.id}"
+                                   onclick="toggleSelect('${order.id}', this)">
+                            <span class="customer editable" 
+                                  contenteditable="true" 
+                                  onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
+                            <div class="product-info">
+                                <span class="code">${order.code}</span>
+                                <span class="name">${order.name || '-'}</span>
+                                <span class="size editable" 
+                                      contenteditable="true" 
+                                      onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
+                                <span class="quantity editable"
+                                      contenteditable="true"
+                                      onblur="updateOrderField('${order.id}', 'quantity', this.textContent)">×${order.quantity}</span>
+                            </div>
+                            <span class="price editable" 
+                                  contenteditable="true" 
+                                  onblur="updateOrderField('${order.id}', 'price', this.textContent)">¥${order.price || '-'}</span>
+                            <span class="time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                            <button class="delete-btn" onclick="deleteOrder('${order.id}')">删除</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="batch-actions">
+                    <span class="count"></span>
+                    <button onclick="batchDeleteOrders()" class="batch-delete-btn">批量删除</button>
+                    <button onclick="clearSelection()" class="batch-cancel-btn">取消选择</button>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    // 设置导出日期为当前日期
+    function setTodayDate() {
+        const today = new Date().toISOString().split('T')[0];
+        const exportDateInput = document.getElementById('exportDate');
+        
+        // 只有当日期为空或者是旧日期时才更新
+        if (!exportDateInput.value || exportDateInput.value === '2024-12-17') {
+            exportDateInput.value = today;
+        }
+        
+        // 保存日期到 localStorage
+        localStorage.setItem('lastExportDate', exportDateInput.value);
+    }
+
+    // 页面加载时设置日期
+    function initializeDate() {
+        const exportDateInput = document.getElementById('exportDate');
+        const today = new Date().toISOString().split('T')[0];
+        exportDateInput.value = today;
+    }
+
+    // 确保在 DOM 加载完成后执行
+    document.addEventListener('DOMContentLoaded', initializeDate);
+    
+    // 立即执行一次
+    setTodayDate();
+
+    // 添加以图搜图功能
+    function initializeImageSearch() {
+        const html = `
+            <div id="imageSearchModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>以图搜图</h3>
+                        <span class="close-btn" onclick="closeImageSearch()">&times;</span>
+                    </div>
+                    <div class="image-search-container">
+                        <div class="image-upload-area" id="imageUploadArea">
+                            <input type="file" id="imageSearchInput" accept="image/*" hidden>
+                            <div class="upload-placeholder">
+                                <i class="fas fa-camera"></i>
+                                <p>点击上传图片或拖拽图片到此处</p>
+                            </div>
+                            <img id="imageSearchPreview" style="display: none;">
+                        </div>
+                        <div class="search-results" id="imageSearchResults">
+                            <div class="results-header">
+                                <h4>搜索结果</h4>
+                                <span class="result-count"></span>
+                            </div>
+                            <div class="results-grid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 1000;
+            }
+            .modal-content {
+                background: white;
+                margin: 5% auto;
+                width: 90%;
+                max-width: 1200px;
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .modal-header {
+                padding: 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #eee;
+            }
+            .close-btn {
+                font-size: 24px;
+                cursor: pointer;
+            }
+            .image-search-container {
+                display: flex;
+                gap: 20px;
+                padding: 20px;
+            }
+            .image-upload-area {
+                width: 300px;
+                height: 300px;
+                border: 2px dashed #ddd;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                position: relative;
+            }
+            .upload-placeholder {
+                text-align: center;
+            }
+            .upload-placeholder i {
+                font-size: 48px;
+                color: #999;
+            }
+            #imageSearchPreview {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+            .search-results {
+                flex: 1;
+                min-height: 300px;
+            }
+            .results-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
+            }
+            .result-item {
+                border: 1px solid #eee;
+                border-radius: 4px;
+                padding: 10px;
+                cursor: pointer;
+            }
+            .result-item img {
+                width: 100%;
+                height: 150px;
+                object-fit: contain;
+            }
+            .result-item .info {
+                margin-top: 8px;
+                font-size: 12px;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 初始化事件监听
+        initializeImageSearchEvents();
+    }
+
+    function initializeImageSearchEvents() {
+        const uploadArea = document.getElementById('imageUploadArea');
+        const searchInput = document.getElementById('imageSearchInput');
+        const preview = document.getElementById('imageSearchPreview');
+
+        uploadArea.addEventListener('click', () => searchInput.click());
+
+        // 处理文件选择
+        searchInput.addEventListener('change', handleImageSelect);
+
+        // 处理拖放
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#2196F3';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#ddd';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ddd';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleImageSelect({ target: { files: [file] } });
+            }
+        });
+    }
+
+    async function handleImageSelect(event) {
+        const file = event.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+
+        const preview = document.getElementById('imageSearchPreview');
+        const placeholder = document.querySelector('.upload-placeholder');
+
+        // 显示预览
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            // 始搜索相似图片
+            await searchSimilarImages(e.target.result);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function searchSimilarImages(imageData) {
+        const resultsGrid = document.querySelector('.results-grid');
+        const resultCount = document.querySelector('.result-count');
+        resultsGrid.innerHTML = '<div class="loading">正在搜索相似商品...</div>';
+
+        try {
+            // 获取所有商品数据
+            const productData = JSON.parse(localStorage.getItem('productData') || '{}');
+            const products = Object.values(productData);
+
+            // 获取所有商品的图片并计算相似度
+            const results = await Promise.all(products.map(async (product) => {
+                try {
+                    const productImage = await getImageFromDB(product.code, product.supplier);
+                    if (productImage?.file) {
+                        // 这里可以添加图片相似度比较算法
+                        // 目前简单返回所有图片
+                        return {
+                            ...product,
+                            image: productImage.file,
+                            similarity: Math.random() // 模拟相似度
+                        };
+                    }
+                } catch (error) {
+                    console.error('获取商品图片失败:', error);
+                }
+                return null;
+            }));
+
+            // 过滤掉没有图片的商品并按相似度排序
+            const validResults = results.filter(Boolean)
+                .sort((a, b) => b.similarity - a.similarity);
+
+            // 显示结果
+            resultCount.textContent = `找到 ${validResults.length} 个相似商品`;
+            resultsGrid.innerHTML = validResults.map(product => `
+                <div class="result-item" onclick="openOrderForm(${JSON.stringify(product)})">
+                    <img src="${product.image}" alt="${product.name}">
+                    <div class="info">
+                        <div>${product.name || ''}</div>
+                        <div>${product.code}</div>
+                    </div>
+                </div>
+            `).join('');
+
+        } catch (error) {
+            console.error('搜索相似图片失败:', error);
+            resultsGrid.innerHTML = '<div class="error">搜索失败，请重试</div>';
+        }
+    }
+
+    function openImageSearch() {
+        const modal = document.getElementById('imageSearchModal');
+        modal.style.display = 'block';
+    }
+
+    function closeImageSearch() {
+        const modal = document.getElementById('imageSearchModal');
+        modal.style.display = 'none';
+        // 重置上传区域
+        document.getElementById('imageSearchPreview').style.display = 'none';
+        document.querySelector('.upload-placeholder').style.display = 'block';
+        document.querySelector('.results-grid').innerHTML = '';
+    }
+
+    // 在页面加载时初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeImageSearch();
+        // ... 其他初始化代码 ...
+    });
+
+    // 添加选择并填充订单的函数
+    function selectAndFillOrder(product) {
+        // 填充订单表单
+        const orderForm = document.getElementById('orderForm');
+        if (orderForm) {
+            // 填充基本信息
+            document.getElementById('orderCode').value = product.code || '';
+            document.getElementById('orderName').value = product.name || '';
+            document.getElementById('orderSupplier').value = product.supplier || '';
+            document.getElementById('orderPrice').value = product.price || '';
+            document.getElementById('orderCost').value = product.cost || '';
+            
+            // 设置默认数量为1
+            document.getElementById('orderQuantity').value = '1';
+            
+            // 清空尺码和备注
+            document.getElementById('orderSize').value = '';
+            document.getElementById('orderRemark').value = '';
+            
+            // 显示表单
+            orderForm.style.display = 'block';
+            document.getElementById('overlay').classList.add('active');
+            
+            // 聚焦到尺码输入框
+            document.getElementById('orderSize').focus();
+        }
+    }
+
+    // 新增一个更简单的填充表单函数
+    function fillOrderForm(code, name, supplier, price, cost) {
+        document.getElementById('orderCode').value = code;
+        document.getElementById('orderName').value = name;
+        document.getElementById('orderSupplier').value = supplier;
+        document.getElementById('orderPrice').value = price;
+        document.getElementById('orderCost').value = cost;
+        document.getElementById('orderQuantity').value = '1';
+        document.getElementById('orderSize').value = '';
+        document.getElementById('orderRemark').value = '';
+        
+        // 显示表单
+        document.getElementById('orderForm').style.display = 'block';
+        document.getElementById('overlay').classList.add('active');
+        
+        // 聚焦到尺码输入框
+        document.getElementById('orderSize').focus();
+        
+        // 关闭版本选择窗口
+        closePriceCompare();
+    }
+
+    // 添加导入订单功能
+    document.getElementById('orderExcelFile').addEventListener('change', handleOrderImport);
+
+    async function handleOrderImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            // 检查文件类型
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                throw new Error('请选择 Excel 文件 (.xlsx 或 .xls)');
+            }
+
+            const data = await readExcelFile(file);
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error('Excel 文件中没有找到有效数据');
+            }
+
+            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+            const importTime = new Date().toISOString();
+            let importCount = 0;
+
+            // 处理Excel数据
+            for (const row of data) {
+                // 检查必要字段
+                if (!row['商品编码'] && !row['客户']) {
+                    console.warn('跳过无效行:', row);
+                    continue;
+                }
+
+                const orderId = 'order_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+                // 处理数量
+                let quantity = (row['数量'] || '').toString();
+                quantity = quantity.replace(/[件个\s]/g, '');
+                if (!quantity || isNaN(parseInt(quantity))) {
+                    quantity = '1';
+                }
+
+                // 处理价格
+                let price = (row['单价'] || row['价格'] || '').toString();
+                price = price.replace(/[¥\s]/g, '');
+                if (!price || isNaN(parseFloat(price))) {
+                    price = '0';
+                }
+
+                // 处理成本
+                let cost = (row['成本'] || '').toString();
+                cost = cost.replace(/[¥\s]/g, '');
+                if (!cost || isNaN(parseFloat(cost))) {
+                    cost = '0';
+                }
+
+                const order = {
+                    id: orderId,
+                    customer: row['客户'] || '',
+                    code: row['商品编码'] || '',
+                    name: row['商品名称'] || '',
+                    size: row['尺码'] || '',
+                    price: price,
+                    cost: cost,
+                    quantity: quantity,
+                    supplier: row['供货商'] || '',
+                    remark: row['备注'] || '',
+                    timestamp: importTime,
+                    isNewImport: true
+                };
+
+                orderData[orderId] = order;
+                importCount++;
+            }
+
+            if (importCount === 0) {
+                throw new Error('没有找到可导入的有效订单数据');
+            }
+
+            // 保存更新后的数据
+            localStorage.setItem('orderData', JSON.stringify(orderData));
+            
+            // 更新显示
+            updateRecentOrders();
+            
+            // 显示导入结果
+            alert(`成功导入 ${importCount} 条订单数据`);
+            
+            // 清除文件选择
+            event.target.value = '';
+
+        } catch (error) {
+            console.error('导入订单失败:', error);
+            alert('导入订单失败: ' + error.message);
+            // 清除文件选择
+            event.target.value = '';
+        }
+    }
+
+    // 读取Excel文件
+    function readExcelFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 确保工作簿存在
+                    if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+                        throw new Error('无效的 Excel 文件格式');
+                    }
+                    
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    if (!firstSheet) {
+                        throw new Error('Excel 文件中没有找到工作表');
+                    }
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    resolve(jsonData);
+                } catch (error) {
+                    console.error('Excel 解析错误:', error);
+                    reject(new Error('Excel 文件解析失败: ' + (error.message || '未知错误')));
+                }
+            };
+            
+            reader.onerror = () => reject(new Error('文件读取失败'));
+            
+            try {
+            reader.readAsArrayBuffer(file);
+            } catch (error) {
+                reject(new Error('文件读取失败: ' + error.message));
+            }
+        });
+    }
+
+    // 修改最近订单显示函数，添加新导入标记
+    function updateRecentOrders() {
+        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+        const recentOrdersList = document.getElementById('recentOrdersList');
+        
+        const recentOrders = Object.values(orderData)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            .slice(0, 10);
+
+        recentOrdersList.innerHTML = recentOrders.map(order => `
+            <div class="recent-order-item ${order.isNewImport ? 'new-import' : ''}">
+                <div class="order-main-info">
+                    <span class="order-customer" contenteditable="true" 
+                          onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
+                    <div class="order-code-name">
+                        <span class="order-code">${order.code}</span>
+                        <span class="order-name">${order.name || ''}</span>
+                    </div>
+                </div>
+                <div class="order-second-line">
+                    <span class="order-size" contenteditable="true" 
+                          onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
+                    <div class="order-quantity-price">
+                        <span>${order.quantity}件</span>
+                        <span class="order-price" contenteditable="true" 
+                              onblur="updateOrderField('${order.id}', 'price', this.textContent)">¥${order.price || '-'}</span>
+                    </div>
+                    <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // 添加显示放大图片的函数
+    function showZoomedImage(imageUrl) {
+        const container = document.getElementById('zoomedImageContainer');
+        const zoomedImage = document.getElementById('zoomedImage');
+        
+        zoomedImage.src = imageUrl;
+        container.style.display = 'flex';
+        document.body.style.overflow = 'hidden'; // 防止背景滚动
+    }
+
+    // 添加关闭放大图片的函数
+    function closeZoomedImage() {
+        const container = document.getElementById('zoomedImageContainer');
+        container.style.display = 'none';
+        document.body.style.overflow = ''; // ���复背景滚动
+    }
+
+    // 添加点击背景关闭放大图片的功能
+    document.getElementById('zoomedImageContainer').addEventListener('click', function(event) {
+        if (event.target === this) {
+            closeZoomedImage();
+        }
+    });
+
+    // 添加 ESC 键关闭功能
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeZoomedImage();
+        }
+    });
  
