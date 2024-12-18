@@ -1764,7 +1764,7 @@
     <div id="batchActions" class="batch-actions" style="display: none;">
         <span class="count"></span>
         <button onclick="deleteSelectedItems()" class="delete-btn">删除选中</button>
-        <button onclick="clearSelection()" class="cancel-btn">取���选择</button>
+        <button onclick="clearSelection()" class="cancel-btn">取消选择</button>
     </div>
 
     <div class="edit-form" id="editProductForm">
@@ -1881,6 +1881,24 @@
                 scrollTop.classList.remove('visible');
             }
         });
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+    <!-- 修改 Firebase 配置 -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxDpGJ2L8RxDrwZhqLqyUvQWLMEEzS0JE",
+            authDomain: "order-system-huangquan.firebaseapp.com",
+            databaseURL: "https://order-system-huangquan-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "order-system-huangquan",
+            storageBucket: "order-system-huangquan.appspot.com",
+            messagingSenderId: "1015673383770",
+            appId: "1:1015673383770:web:5c0f3c2d5c2c2c2d5c2c2c"
+        };
+
+        // 初始化 Firebase
+        firebase.initializeApp(firebaseConfig);
     </script>
 </body>
 </html> 

@@ -893,7 +893,7 @@ async function handleFolderSelect(event) {
         await updateImageGrid();
         
         // 显示详细结果
-        let message = `处理完成！\n成功匹配: ${matchCount} 个\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
+        let message = `处理完成！\n成功匹配: ${matchCount} ���\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
         if (noMatchCount > 0) {
             message += '\n\n未匹配的文件:\n' + noMatchFiles.join('\n');
         }
@@ -1308,7 +1308,7 @@ function checkDBConnection() {
     });
 }
 
-// 在每次操作前检查数据库连接
+// 在每���操作前检查数据库连接
 async function ensureDBConnection() {
     try {
         await checkDBConnection();
@@ -3570,5 +3570,164 @@ function updateSupplierNav() {
         if (event.key === 'Escape') {
             closeZoomedImage();
         }
+    });
+
+    // 添加存储检查函数
+    function checkStorageAvailability() {
+        try {
+            // 检查 localStorage
+            const testKey = '__storage_test__';
+            localStorage.setItem(testKey, testKey);
+            localStorage.removeItem(testKey);
+
+            // 检查 IndexedDB
+            if (!window.indexedDB) {
+                throw new Error('浏览器不支持 IndexedDB');
+            }
+
+            return true;
+        } catch (e) {
+            console.error('存储检查失败:', e);
+            alert('您的浏览器可能阻止了网站保存数据。\n' +
+                  '如果您使用隐私模式或禁用了第三方 Cookie，请尝试：\n' +
+                  '1. 退出隐私模式\n' +
+                  '2. 允许第三方 Cookie\n' +
+                  '3. 允许网站数据');
+            return false;
+        }
+    }
+
+    // 修改保存订单函数
+    async function saveOrder(orderData) {
+        try {
+            if (!checkStorageAvailability()) {
+                throw new Error('存储功能不可用');
+            }
+
+            // 保存到 Firebase
+            await db.ref('orders/' + orderData.id).set(orderData);
+            
+            // 同时保存到本地存储作为备份
+            const existingOrders = JSON.parse(localStorage.getItem('orderData') || '{}');
+            existingOrders[orderData.id] = orderData;
+            localStorage.setItem('orderData', JSON.stringify(existingOrders));
+            
+            // 更新显示
+            updateRecentOrders();
+            
+            return true;
+        } catch (error) {
+            console.error('保存订单失败:', error);
+            alert('保存订单失败: ' + error.message + '\n请检查网络连接或刷新页面重试');
+            return false;
+        }
+    }
+
+    // 修改获取订单函数
+    async function getOrders() {
+        try {
+            // 从 Firebase 获取订单
+            const snapshot = await db.ref('orders').once('value');
+            const orders = snapshot.val() || {};
+            
+            // 更新本地存储
+            localStorage.setItem('orderData', JSON.stringify(orders));
+            
+            return orders;
+        } catch (error) {
+            console.error('获取订单失败:', error);
+            // 如果 Firebase 获取失败，使用本地存储的数据
+            return JSON.parse(localStorage.getItem('orderData') || '{}');
+        }
+    }
+
+    // 修改更新订单字段函数
+    async function updateOrderField(orderId, field, value) {
+        try {
+            // 更新 Firebase
+            await db.ref(`orders/${orderId}/${field}`).set(value);
+            
+            // 同时更新本地存储
+            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+            if (orderData[orderId]) {
+                orderData[orderId][field] = value;
+                localStorage.setItem('orderData', JSON.stringify(orderData));
+            }
+        } catch (error) {
+            console.error('更新订单失败:', error);
+            alert('更新订单失败: ' + error.message);
+        }
+    }
+
+    // 修改删除订单函数
+    async function deleteOrder(orderId) {
+        if (!confirm('确定要删除这条订单吗？')) return;
+
+        try {
+            // 从 Firebase 删除
+            await db.ref('orders/' + orderId).remove();
+            
+            // 同时从本地存储删除
+            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
+            delete orderData[orderId];
+            localStorage.setItem('orderData', JSON.stringify(orderData));
+            
+            // 更新显示
+            updateRecentOrders();
+        } catch (error) {
+            console.error('删除订单失败:', error);
+            alert('删除订单失败: ' + error.message);
+        }
+    }
+
+    // 修改最近订单显示函数
+    async function updateRecentOrders() {
+        try {
+            const orders = await getOrders();
+            const recentOrdersList = document.getElementById('recentOrdersList');
+            
+            const recentOrders = Object.values(orders)
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, 10);
+
+            recentOrdersList.innerHTML = recentOrders.map(order => `
+                <div class="recent-order-item ${order.isNewImport ? 'new-import' : ''}">
+                    <div class="order-main-info">
+                        <span class="order-customer" contenteditable="true" 
+                              onblur="updateOrderField('${order.id}', 'customer', this.textContent)">${order.customer || '未填写'}</span>
+                        <div class="order-code-name">
+                            <span class="order-code">${order.code}</span>
+                            <span class="order-name">${order.name || ''}</span>
+                        </div>
+                    </div>
+                    <div class="order-second-line">
+                        <span class="order-size" contenteditable="true" 
+                              onblur="updateOrderField('${order.id}', 'size', this.textContent)">${order.size || '-'}</span>
+                        <div class="order-quantity-price">
+                            <span>${order.quantity}件</span>
+                            <span class="order-price" contenteditable="true" 
+                                  onblur="updateOrderField('${order.id}', 'price', this.textContent)">¥${order.price || '-'}</span>
+                        </div>
+                        <span class="order-time">${new Date(order.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('更新订单显示失败:', error);
+        }
+    }
+
+    // 添加实时订单更新监听
+    function initRealtimeUpdates() {
+        db.ref('orders').on('value', (snapshot) => {
+            const orders = snapshot.val() || {};
+            localStorage.setItem('orderData', JSON.stringify(orders));
+            updateRecentOrders();
+        });
+    }
+
+    // 在页面加载时初始化实时更新
+    document.addEventListener('DOMContentLoaded', () => {
+        initRealtimeUpdates();
     });
  
