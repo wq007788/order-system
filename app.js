@@ -893,7 +893,7 @@ async function handleFolderSelect(event) {
         await updateImageGrid();
         
         // 显示详细结果
-        let message = `处理完成！\n成功匹配: ${matchCount} ���\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
+        let message = `处理完成！\n成功匹配: ${matchCount} �����\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
         if (noMatchCount > 0) {
             message += '\n\n未匹配的文件:\n' + noMatchFiles.join('\n');
         }
@@ -1206,6 +1206,108 @@ function initializeGridColumns() {
     updateGridColumns(savedColumns);
 }
 
+// 添加初始化数据同步函数
+async function initializeData() {
+    try {
+        // 从 Firebase 获取订单数据
+        const ordersSnapshot = await firebase.database().ref('orders').once('value');
+        const orders = ordersSnapshot.val() || {};
+        localStorage.setItem('orderData', JSON.stringify(orders));
+
+        // 从 Firebase 获取商品数据
+        const productsSnapshot = await firebase.database().ref('products').once('value');
+        const products = productsSnapshot.val() || {};
+        localStorage.setItem('productData', JSON.stringify(products));
+
+        // 从 Firebase 获取图片数据
+        const imagesSnapshot = await firebase.database().ref('images').once('value');
+        const images = imagesSnapshot.val() || {};
+        
+        // 将图片数据保存到 IndexedDB
+        if (Object.keys(images).length > 0) {
+            await saveImagesToIndexedDB(images);
+        }
+
+        // 更新显示
+        await updateImageGrid();
+        updateRecentOrders();
+
+        console.log('数据同步完成');
+    } catch (error) {
+        console.error('数据同步失败:', error);
+        alert('数据同步失败: ' + error.message);
+    }
+}
+
+// 添加保存图片到 IndexedDB 的函数
+async function saveImagesToIndexedDB(images) {
+    await ensureDBConnection();
+    const transaction = db.transaction(['images'], 'readwrite');
+    const store = transaction.objectStore('images');
+    
+    for (const [key, imageData] of Object.entries(images)) {
+        await store.put(imageData);
+    }
+}
+
+// 修改保存图片函数
+async function saveImageToDB(code, imageUrl, supplier) {
+    try {
+        const imageData = {
+            code: code,
+            supplier: supplier,
+            file: imageUrl
+        };
+
+        // 保存到 IndexedDB
+        await ensureDBConnection();
+        const transaction = db.transaction(['images'], 'readwrite');
+        const store = transaction.objectStore('images');
+        await store.put(imageData);
+
+        // 同时保存到 Firebase
+        await firebase.database().ref(`images/${code}_${supplier}`).set(imageData);
+
+        console.log(`图片保存成功: ${code}_${supplier}`);
+    } catch (error) {
+        console.error('保存图片失败:', error);
+        throw error;
+    }
+}
+
+// 修改页面加载初始化
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // 初始化数据
+        await initializeData();
+        
+        // 设置实时更新监听
+        firebase.database().ref('orders').on('value', (snapshot) => {
+            const orders = snapshot.val() || {};
+            localStorage.setItem('orderData', JSON.stringify(orders));
+            updateRecentOrders();
+        });
+
+        // 监听商品数据变化
+        firebase.database().ref('products').on('value', (snapshot) => {
+            const products = snapshot.val() || {};
+            localStorage.setItem('productData', JSON.stringify(products));
+            updateImageGrid();
+        });
+
+        // 监听图片数据变化
+        firebase.database().ref('images').on('value', async (snapshot) => {
+            const images = snapshot.val() || {};
+            await saveImagesToIndexedDB(images);
+            updateImageGrid();
+        });
+
+    } catch (error) {
+        console.error('初始化失败:', error);
+        alert('初始化失败: ' + error.message);
+    }
+});
+
 // 在页面加载时初始化所有功能
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -1301,14 +1403,14 @@ function checkDBConnection() {
             const request = store.count();
 
             request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(new Error('数据库连接测试��败'));
+            request.onerror = () => reject(new Error('数据库连接测试败'));
         } catch (error) {
             reject(error);
         }
     });
 }
 
-// 在每���操作前检查数据库连接
+// 在每操作前检查数据库连接
 async function ensureDBConnection() {
     try {
         await checkDBConnection();
@@ -1318,9 +1420,9 @@ async function ensureDBConnection() {
     }
 }
 
-// 修��清除数据功能
+// 修清除数据功能
 async function clearAllData() {
-    const password = prompt('���输入管理员密码:');
+    const password = prompt('输入管理员密码:');
     
     // 验证密码
     if (password !== '900910') {
@@ -1388,7 +1490,7 @@ function showPriceCompare(code) {
         priceCompareList.innerHTML = `
             <div class="price-compare-header">
                 <h4>商品编码: ${code}</h4>
-                <p>商品��称: ${matchingProducts[0].name || '-'}</p>
+                <p>商品称: ${matchingProducts[0].name || '-'}</p>
                 <span class="close-btn" onclick="closePriceCompare()">&times;</span>
             </div>
             ${matchingProducts.map(product => {
@@ -2471,7 +2573,7 @@ function updateSupplierNav() {
                 <strong>所有商品总数量：${totalAllQuantity}</strong>
                 </div>
                 <div style="font-size: 14px;">
-                    供应商数量��${Object.keys(supplierOrders).length}
+                    供应商数量${Object.keys(supplierOrders).length}
                 </div>
             </div>
         ` + html;
@@ -3555,7 +3657,7 @@ function updateSupplierNav() {
     function closeZoomedImage() {
         const container = document.getElementById('zoomedImageContainer');
         container.style.display = 'none';
-        document.body.style.overflow = ''; // ���复背景滚动
+        document.body.style.overflow = ''; // 复背景滚动
     }
 
     // 添加点击背景关闭放大图片的功能
