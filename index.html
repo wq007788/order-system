@@ -1882,11 +1882,12 @@
             }
         });
     </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    <!-- 修改 Firebase 配置 -->
-    <script>
+        // Your web app's Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDxDpGJ2L8RxDrwZhqLqyUvQWLMEEzS0JE",
             authDomain: "order-system-huangquan.firebaseapp.com",
@@ -1897,8 +1898,12 @@
             appId: "1:1015673383770:web:5c0f3c2d5c2c2c2d5c2c2c"
         };
 
-        // 初始化 Firebase
-        firebase.initializeApp(firebaseConfig);
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Make Firebase database available globally
+        window.database = database;
     </script>
 </body>
 </html> 

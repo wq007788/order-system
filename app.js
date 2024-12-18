@@ -893,7 +893,7 @@ async function handleFolderSelect(event) {
         await updateImageGrid();
         
         // 显示详细结果
-        let message = `处理完成！\n成功匹配: ${matchCount} �����\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
+        let message = `处理完成！\n成功匹配: ${matchCount} �������\n未匹配: ${noMatchCount} 个\n总文件数: ${files.length} 个`;
         if (noMatchCount > 0) {
             message += '\n\n未匹配的文件:\n' + noMatchFiles.join('\n');
         }
@@ -945,7 +945,7 @@ function initializeDragAndDrop() {
             const x = e.clientX - initialX;
             const y = e.clientY - initialY;
             
-            // 添加边界限制
+            // 添加边界限��
             const rect = editForm.getBoundingClientRect();
             const parentRect = document.documentElement.getBoundingClientRect();
             
@@ -1209,30 +1209,35 @@ function initializeGridColumns() {
 // 添加初始化数据同步函数
 async function initializeData() {
     try {
+        console.log('开始同步数据...');
+        
         // 从 Firebase 获取订单数据
-        const ordersSnapshot = await firebase.database().ref('orders').once('value');
+        const ordersSnapshot = await database.ref('orders').once('value');
         const orders = ordersSnapshot.val() || {};
         localStorage.setItem('orderData', JSON.stringify(orders));
+        console.log('订单数据同步完成');
 
         // 从 Firebase 获取商品数据
-        const productsSnapshot = await firebase.database().ref('products').once('value');
+        const productsSnapshot = await database.ref('products').once('value');
         const products = productsSnapshot.val() || {};
         localStorage.setItem('productData', JSON.stringify(products));
+        console.log('商品数据同步完成');
 
         // 从 Firebase 获取图片数据
-        const imagesSnapshot = await firebase.database().ref('images').once('value');
+        const imagesSnapshot = await database.ref('images').once('value');
         const images = imagesSnapshot.val() || {};
         
         // 将图片数据保存到 IndexedDB
         if (Object.keys(images).length > 0) {
             await saveImagesToIndexedDB(images);
         }
+        console.log('图片数据同步完成');
 
         // 更新显示
         await updateImageGrid();
         updateRecentOrders();
 
-        console.log('数据同步完成');
+        console.log('所有数据同步完成');
     } catch (error) {
         console.error('数据同步失败:', error);
         alert('数据同步失败: ' + error.message);
@@ -1256,7 +1261,8 @@ async function saveImageToDB(code, imageUrl, supplier) {
         const imageData = {
             code: code,
             supplier: supplier,
-            file: imageUrl
+            file: imageUrl,
+            timestamp: Date.now() // 添加时间戳
         };
 
         // 保存到 IndexedDB
@@ -1266,7 +1272,7 @@ async function saveImageToDB(code, imageUrl, supplier) {
         await store.put(imageData);
 
         // 同时保存到 Firebase
-        await firebase.database().ref(`images/${code}_${supplier}`).set(imageData);
+        await database.ref(`images/${code}_${supplier}`).set(imageData);
 
         console.log(`图片保存成功: ${code}_${supplier}`);
     } catch (error) {
@@ -1278,30 +1284,34 @@ async function saveImageToDB(code, imageUrl, supplier) {
 // 修改页面加载初始化
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // 初始化数据库
+        await initDB();
+        
         // 初始化数据
         await initializeData();
         
         // 设置实时更新监听
-        firebase.database().ref('orders').on('value', (snapshot) => {
+        database.ref('orders').on('value', (snapshot) => {
             const orders = snapshot.val() || {};
             localStorage.setItem('orderData', JSON.stringify(orders));
             updateRecentOrders();
         });
 
         // 监听商品数据变化
-        firebase.database().ref('products').on('value', (snapshot) => {
+        database.ref('products').on('value', (snapshot) => {
             const products = snapshot.val() || {};
             localStorage.setItem('productData', JSON.stringify(products));
             updateImageGrid();
         });
 
         // 监听图片数据变化
-        firebase.database().ref('images').on('value', async (snapshot) => {
+        database.ref('images').on('value', async (snapshot) => {
             const images = snapshot.val() || {};
             await saveImagesToIndexedDB(images);
             updateImageGrid();
         });
 
+        console.log('实时更新监听已设置');
     } catch (error) {
         console.error('初始化失败:', error);
         alert('初始化失败: ' + error.message);
@@ -1389,7 +1399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// 添加数据库状态检查函数
+// 添加数据库状态检查函���
 function checkDBConnection() {
     return new Promise((resolve, reject) => {
         if (!db) {
@@ -3707,7 +3717,7 @@ function updateSupplierNav() {
             }
 
             // 保存到 Firebase
-            await db.ref('orders/' + orderData.id).set(orderData);
+            await set(ref(db, 'orders/' + orderData.id), orderData);
             
             // 同时保存到本地存储作为备份
             const existingOrders = JSON.parse(localStorage.getItem('orderData') || '{}');
@@ -3729,7 +3739,8 @@ function updateSupplierNav() {
     async function getOrders() {
         try {
             // 从 Firebase 获取订单
-            const snapshot = await db.ref('orders').once('value');
+            const ordersRef = ref(db, 'orders');
+            const snapshot = await get(ordersRef);
             const orders = snapshot.val() || {};
             
             // 更新本地存储
@@ -3747,7 +3758,7 @@ function updateSupplierNav() {
     async function updateOrderField(orderId, field, value) {
         try {
             // 更新 Firebase
-            await db.ref(`orders/${orderId}/${field}`).set(value);
+            await set(ref(db, `orders/${orderId}/${field}`), value);
             
             // 同时更新本地存储
             const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
@@ -3767,7 +3778,7 @@ function updateSupplierNav() {
 
         try {
             // 从 Firebase 删除
-            await db.ref('orders/' + orderId).remove();
+            await remove(ref(db, `orders/${orderId}`));
             
             // 同时从本地存储删除
             const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
@@ -3821,7 +3832,7 @@ function updateSupplierNav() {
 
     // 添加实时订单更新监听
     function initRealtimeUpdates() {
-        db.ref('orders').on('value', (snapshot) => {
+        onValue(ref(db, 'orders'), (snapshot) => {
             const orders = snapshot.val() || {};
             localStorage.setItem('orderData', JSON.stringify(orders));
             updateRecentOrders();
