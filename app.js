@@ -1,6 +1,3 @@
-// 使用全局变量
-const { db: firebaseDB } = window.appGlobals || {};
-
 // 图片上传相关函数
 function initializeImageUpload() {
     const fileInput = document.getElementById('fileInput');
@@ -218,15 +215,16 @@ function saveImageData(code, imageUrl) {
     }
 }
 
-// 添加 IndexedDB 数据库
+// 添加 IndexedDB 数
 const DB_NAME = 'ImageLibraryDB';
 const DB_VERSION = 1;
-let imageDB; // 重命名为 imageDB
+let db;
 
 // 修改数据库初始化函数
 function initDB() {
     return new Promise((resolve, reject) => {
         try {
+            // 直接打开数据库，不删除旧数据
             const request = indexedDB.open(DB_NAME, DB_VERSION);
 
             request.onerror = (event) => {
@@ -235,9 +233,9 @@ function initDB() {
             };
 
             request.onsuccess = (event) => {
-                imageDB = event.target.result;
+                db = event.target.result;
                 console.log('数据库打开成功');
-                resolve(imageDB);
+                resolve(db);
             };
 
             request.onupgradeneeded = (event) => {
@@ -263,7 +261,7 @@ async function saveImageToDB(code, imageUrl, supplier = '') {
     await ensureDBConnection();
     return new Promise((resolve, reject) => {
         try {
-            const transaction = imageDB.transaction(['images'], 'readwrite');
+            const transaction = db.transaction(['images'], 'readwrite');
             const store = transaction.objectStore('images');
             
             // 使用编码和供应商组合作为唯一标识
@@ -300,7 +298,7 @@ async function getImageFromDB(code, supplier) {
     await ensureDBConnection();
     return new Promise((resolve, reject) => {
         try {
-            const transaction = imageDB.transaction(['images'], 'readonly');
+            const transaction = db.transaction(['images'], 'readonly');
             const store = transaction.objectStore('images');
             // 使用组合ID查询
             const uniqueId = `${code}_${supplier}`;
@@ -336,7 +334,7 @@ async function updateImageGrid() {
     const supplierGroups = {};
 
     try {
-        const transaction = imageDB.transaction(['images'], 'readonly');
+        const transaction = db.transaction(['images'], 'readonly');
         const store = transaction.objectStore('images');
         const images = await new Promise((resolve, reject) => {
             const request = store.getAll();
@@ -765,7 +763,7 @@ async function processExcelData(data, progress) {
     console.log('Excel数据处理完成');
 }
 
-// 修改 readExcelFile 函数���添加尺码到必要字段
+// 修改 readExcelFile 函数，添加尺码到必要字段
 function readExcelFile(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -878,7 +876,7 @@ async function handleFolderSelect(event) {
                         console.log(`保存成功: ${uniqueId}`);
                     }
                 } catch (err) {
-                    console.error(`��理图片���败 ${code}:`, err);
+                    console.error(`��理图片失败 ${code}:`, err);
                 }
             } else {
                 console.log(`未找到匹配的商编码: ${code}`);
@@ -902,8 +900,8 @@ async function handleFolderSelect(event) {
         alert(message);
         
     } catch (error) {
-        console.error('处理文件夹�����败:', error);
-        alert('�����理文件夹失���: ' + error.message);
+        console.error('处理文件夹失败:', error);
+        alert('处理文件��失��: ' + error.message);
     } finally {
         progressBar.style.display = 'none';
         progress.style.width = '0%';
@@ -913,18 +911,9 @@ async function handleFolderSelect(event) {
 
 // 修改拖动功能
 function initializeDragAndDrop() {
-    const formHeader = document.getElementById('formHeader');
-    if (!formHeader) {
-        console.log('拖拽初始化跳过：未找到表单头部元素');
-        return;
-    }
-
     const editForm = document.getElementById('editForm');
-    if (!editForm) {
-        console.log('拖拽初始化跳过：未找到编辑表单元素');
-        return;
-    }
-
+    const formHeader = document.getElementById('formHeader');
+    
     let isDragging = false;
     let currentX;
     let currentY;
@@ -956,7 +945,7 @@ function initializeDragAndDrop() {
             const x = e.clientX - initialX;
             const y = e.clientY - initialY;
             
-            // ��加边界限制
+            // ��加��界��制
             const rect = editForm.getBoundingClientRect();
             const parentRect = document.documentElement.getBoundingClientRect();
             
@@ -1009,14 +998,13 @@ function updateRecordManager() {
     const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
     const searchText = document.getElementById('recordSearch').value.toLowerCase();
 
-    // 按时间倒序排序订单并过滤
+    // 按时间倒序排序订单
     const orders = Object.values(orderData)
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
         .filter(order => {
-            const orderDate = new Date(order.timestamp);
-            orderDate.setHours(0, 0, 0, 0);
-            return orderDate >= dayStart && orderDate < dayEnd;
-        })
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            const searchString = `${order.customer}${order.code}${order.name}`.toLowerCase();
+            return searchString.includes(searchText);
+        });
 
     recordList.innerHTML = orders.map(order => `
             <div class="record-item-manager">
@@ -1143,7 +1131,7 @@ function filterRecords(searchText) {
             const searchString = `${code} ${record.name} ${record.supplier} ${record.customer}`.toLowerCase();
             return searchString.includes(searchText);
         })
-        .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp));
+        .sort((a, b) => new Date(b[1].timestamp) - new Date(a[1].timestamp));  // 正确的写法
 
     recordListManager.innerHTML = filteredRecords.map(([code, record]) => `
         <div class="record-item-manager">
@@ -1161,7 +1149,7 @@ function filterRecords(searchText) {
     `).join('');
 }
 
-// 添加一个函数来更新商品网格的列数
+// 添加一个函数来更新商品网格的��数
 function updateGridColumns(columns) {
     const supplierImages = document.querySelectorAll('.supplier-images');
     supplierImages.forEach(grid => {
@@ -1193,7 +1181,7 @@ function initializeGridColumns() {
     `;
     controls.appendChild(columnControl);
 
-    // 添加事件���听器
+    // 添加事件监听器
     const columnInput = document.getElementById('columnInput');
     
     // 输入时更新
@@ -1234,42 +1222,82 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('数据库初始化成功');
 
         // 初始化其他功能
+        const initResults = [];
+
+        // 使用 try-catch 分别处理每个初始化函数
         const initFunctions = [
             { name: 'initializeImageUpload', fn: initializeImageUpload },
             { name: 'initializeForms', fn: initializeForms },
             { name: 'initializeExcelImport', fn: initializeExcelImport },
             { name: 'initializeFolderInput', fn: initializeFolderInput },
+            { name: 'initializeDragAndDrop', fn: initializeDragAndDrop },
             { name: 'initializeProductEditForm', fn: initializeProductEditForm },
             { name: 'initializeGridColumns', fn: initializeGridColumns }
         ];
 
-        // 移除 initializeDragAndDrop，改为在需要时初始化
-        
         for (const { name, fn } of initFunctions) {
             try {
                 await fn();
                 console.log(`${name} 初始化成功`);
+                initResults.push(`${name}: 成功`);
             } catch (error) {
                 console.error(`${name} 初始化失败:`, error);
+                initResults.push(`${name}: 失败 - ${error.message}`);
             }
         }
 
-        // 其余初始化代码保持不变...
+        // 更新显示
+        try {
+            await updateImageGrid();
+            console.log('图片网格更新成功');
+        } catch (error) {
+            console.error('图片网格更新失败:', error);
+        }
+
+        // 添加价格显示切换功能
+        const infoToggle = document.getElementById('infoToggle');
+        if (infoToggle) {
+            infoToggle.addEventListener('click', () => {
+                document.body.classList.toggle('show-sensitive');
+            });
+        }
+
+        // 设置导出日期默认为当天
+        const exportDateInput = document.getElementById('exportDate');
+        if (exportDateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            exportDateInput.value = today;
+        }
+
+        // 初始化新商品图片上传
+        try {
+            initializeNewItemImageUpload();
+            console.log('新商品图片上传初始化成功');
+        } catch (error) {
+            console.error('新商品图片上传初始化失败:', error);
+        }
+
+        console.log('系统初始化完成');
+        console.log('初始化结果:', initResults);
+
     } catch (error) {
         console.error('系统初始化失败:', error);
+        const errorDetails = `初始化失败: ${error.message}\n\n详细信息:\n${error.stack}`;
+        console.error(errorDetails);
+        alert('系统初始化失败，请查看控制台了解详细信息');
     }
 });
 
 // 添加数据库状态检查函数
 function checkDBConnection() {
     return new Promise((resolve, reject) => {
-        if (!imageDB) {
+        if (!db) {
             reject(new Error('数据库未连接'));
             return;
         }
 
         try {
-            const transaction = imageDB.transaction(['images'], 'readonly');
+            const transaction = db.transaction(['images'], 'readonly');
             const store = transaction.objectStore('images');
             const request = store.count();
 
@@ -1301,7 +1329,7 @@ async function clearAllData() {
         return;
     }
 
-    if (!confirm('确定要清除所有商品数据吗？此操作��可恢复！\n(订单数据将会保留)')) {
+    if (!confirm('确定要清除所有商品数据吗？此操作不可恢复！\n(订单数据将会保留)')) {
         return;
     }
 
@@ -1327,7 +1355,7 @@ async function clearImagesFromDB() {
     await ensureDBConnection();
     return new Promise((resolve, reject) => {
         try {
-            const transaction = imageDB.transaction(['images'], 'readwrite');
+            const transaction = db.transaction(['images'], 'readwrite');
             const store = transaction.objectStore('images');
             const request = store.clear();
             
@@ -1353,11 +1381,11 @@ function showPriceCompare(code) {
     const priceCompareModal = document.getElementById('priceCompareModal');
     const priceCompareList = document.getElementById('priceCompareList');
     
-    // 找出所有相同编码的商品
+    // 找出所有相同编码的��品
     const matchingProducts = Object.values(productData).filter(product => product.code === code);
     
     if (matchingProducts.length > 0) {
-        // 生成版本选择列���
+        // 生成版本��择���表
         priceCompareList.innerHTML = `
             <div class="price-compare-header">
                 <h4>商品编码: ${code}</h4>
@@ -1683,7 +1711,7 @@ function updateSupplierNav() {
             return;
         }
 
-        // 创建Excel工��表，按指定顺序排列字段
+        // 创建Excel工作表，按指定顺序排列字段
         const ws = XLSX.utils.json_to_sheet(filteredOrders.map(order => ({
                 '客户': order.customer || '',
                 '商品编码': order.code || '',
@@ -1704,7 +1732,7 @@ function updateSupplierNav() {
             { wch: 30 },  // 商品名称
             { wch: 10 },  // 尺码
             { wch: 10 },  // 单价
-            { wch: 10 },  // 成���
+            { wch: 10 },  // 成本
             { wch: 10 },  // 数量
             { wch: 15 },  // 供货商
             { wch: 20 },  // 录入时间
@@ -1869,7 +1897,7 @@ function updateSupplierNav() {
                 '最后更新时间': new Date(product.timestamp).toLocaleString()
             }));
 
-            // 创建工作簿和工作表
+            // 创建工作簿���工作表
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.json_to_sheet(products);
 
@@ -2030,7 +2058,7 @@ function updateSupplierNav() {
                         <div class="label">
                             <div class="label-image">
                                 <img src="${label._IMAGE_}" 
-                                     alt="商品图��"
+                                     alt="商品图片"
                                      onerror="console.error('图片加载失败'); this.src='${createEmptyImage()}';">
                             </div>
                             <div class="label-info">
@@ -2077,14 +2105,14 @@ function updateSupplierNav() {
         }
 
         try {
-            console.log('开始生成标签...');
+            console.log('开始生成标���...');
             // 为每个订单根据数量创建多个标签数据
             const labelData = await Promise.all(filteredOrders.flatMap(async order => {
                 try {
                     // 获取商品图片
                     console.log('获取图片:', order.code, order.supplier);
                     const imageData = await getImageFromDB(order.code, order.supplier);
-                    console.log('获取到的图片数据:', imageData);
+                    console.log('获取到的图��数据:', imageData);
                     
                     // 创建数量对应的标签数组
                     const quantity = parseInt(order.quantity) || 1;
@@ -2097,7 +2125,7 @@ function updateSupplierNav() {
                         '备注': order.remark || ''
                     }));
                 } catch (error) {
-                    console.error('处理单个订单标签失败:', error);
+                    console.error('处��单个订单标签失败:', error);
                     return [{
                         '_IMAGE_': createEmptyImage(),
                         '客户': order.customer || '',
@@ -2139,7 +2167,7 @@ function updateSupplierNav() {
         const html = `
             <div class="edit-form active" id="hidePriceManager">
                 <div class="form-header">
-                    <h3>管理不显示���格的客户</h3>
+                    <h3>管理不显示价格的客户</h3>
                     <button class="close-btn" onclick="closeHidePriceManager()">×</button>
                 </div>
                 <div style="padding: 20px;">
@@ -2226,7 +2254,7 @@ function updateSupplierNav() {
         }
     }
 
-    // 修改供应商报货表函数的HTML生成部分
+    // 修改供应商报货表函数
     async function exportSupplierOrder() {
         const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
         const exportDate = document.getElementById('exportDate').value || new Date().toISOString().split('T')[0];
@@ -2240,6 +2268,7 @@ function updateSupplierNav() {
         const filteredOrders = Object.values(orderData).filter(order => {
             const orderDate = new Date(order.timestamp);
             orderDate.setHours(0, 0, 0, 0);
+            dayStart.setHours(0, 0, 0, 0);
             return orderDate >= dayStart && orderDate < dayEnd;
         });
 
@@ -2248,295 +2277,63 @@ function updateSupplierNav() {
             return;
         }
 
-        // 按供应商和商品编码分组统计
-        const supplierOrders = {};
-        let totalAllQuantity = 0;
-
-        filteredOrders.forEach(order => {
-            const supplier = order.supplier || '未知供应商';
-            if (!supplierOrders[supplier]) {
-                supplierOrders[supplier] = {
-                    products: {},
-                    totalQuantity: 0
-                };
-            }
-            
-            const code = order.code;
-            if (!supplierOrders[supplier].products[code]) {
-                supplierOrders[supplier].products[code] = {
-                    code: code,
-                    name: order.name || '',
-                    sizes: {},
-                    total: 0,
-                    supplier: supplier
-                };
-            }
-            
-            const size = order.size || '-';
-            if (!supplierOrders[supplier].products[code].sizes[size]) {
-                supplierOrders[supplier].products[code].sizes[size] = 0;
-            }
-            
-            const quantity = Number(order.quantity) || 0;
-            supplierOrders[supplier].products[code].sizes[size] += quantity;
-            supplierOrders[supplier].products[code].total += quantity;
-            supplierOrders[supplier].totalQuantity += quantity;
-            totalAllQuantity += quantity;
-        });
-
-        // 首先获取所有商品的图片
-        const productPromises = [];
-        for (const supplier in supplierOrders) {
-            for (const product of Object.values(supplierOrders[supplier].products)) {
-                productPromises.push(
-                    getImageFromDB(product.code, product.supplier)
-                        .then(imageData => {
-                            product.imageUrl = imageData?.file || '';
-                        })
-                        .catch(error => {
-                            console.error('获取图片失败:', error);
-                            product.imageUrl = '';
-                        })
-                );
-            }
-        }
-
-        // 等待所有图片加载完成
-        await Promise.all(productPromises);
-
         // 生成HTML内容
         const html = `
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="UTF-8">
-                <title>报货表 - ${exportDate}</title>
-                <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+                <title>供应商报货表 - ${exportDate}</title>
                 <style>
-                    body { 
-                        font-family: Arial, sans-serif; 
-                        padding: 20px;
-                        background: white;
-                    }
-                    .supplier-section { 
-                        margin-bottom: 40px;
-                        cursor: move;
-                        background: white;
-                        border-radius: 8px;
-                        padding: 15px;
-                        position: relative;
-                    }
-                    
-                    .supplier-section:hover::after {
-                        content: '拖拽或点击生成图片';
-                        position: absolute;
-                        top: 10px;
-                        right: 10px;
-                        background: #1976D2;
-                        color: white;
-                        padding: 4px 12px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        opacity: 0.8;
-                    }
-                    
-                    @media print {
-                        .supplier-section:hover::after {
-                            display: none;
-                        }
-                    }
-                    .supplier-header {
-                        font-size: 18px;
+                    body { font-family: Arial; padding: 20px; }
+                    .supplier-section { margin-bottom: 30px; }
+                    .supplier-title { 
+                        font-size: 18px; 
                         font-weight: bold;
-                        margin-bottom: 15px;
-                        padding: 15px;
+                        padding: 10px;
                         background: #f5f5f5;
-                        border-radius: 8px;
-                        display: flex;
-                        justify-content: flex-end;  /* 改为右对齐 */
-                        align-items: center;
-                        gap: 20px;  /* 添加间距 */
+                        margin-bottom: 15px;
                     }
-
-                    .supplier-name {
-                        color: #666;
+                    .product-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                        gap: 15px;
                     }
-
-                    .total-quantity {
-                        color: #1976D2;
-                    }
-
-                    .product-row {
-                        display: flex;
-                        align-items: center;
-                        padding: 15px;
-                        border: 1px solid #eee;
-                        border-radius: 8px;
-                        margin-bottom: 10px;
-                        background: white;
+                    .product-card {
+                        border: 1px solid #ddd;
+                        padding: 10px;
+                        border-radius: 4px;
                     }
                     .product-image {
-                        width: 100px;
-                        height: 100px;
+                        width: 100%;
+                        height: 200px;
                         object-fit: contain;
-                        margin-right: 20px;
-                        background: #f9f9f9;
-                        border-radius: 4px;
-                    }
-                    .product-info {
-                        flex: 1;
-                        display: flex;
-                        align-items: center;
-                        gap: 30px;
-                    }
-                    .product-code {
-                        width: 150px;
-                        font-weight: bold;
+                        margin-bottom: 10px;
                     }
                     .product-name {
-                        width: 200px;
+                        font-weight: bold;
+                        margin: 5px 0;
+                    }
+                    .product-code {
                         color: #666;
+                        font-size: 12px;
                     }
-                    .size-info {
-                        flex: 1;
-                        color: #333;
-                    }
-                    .quantity {
-                        width: 80px;
-                        font-weight: bold;
-                        color: #1976D2;
-                        text-align: center;
-                    }
-                    .total-row {
+                    .size-grid {
                         display: flex;
-                        justify-content: flex-end;
-                        padding: 15px;
-                        background: #f5f5f5;
-                        border-radius: 8px;
-                        margin-top: 15px;
-                        font-weight: bold;
+                        flex-wrap: wrap;
+                        gap: 5px;
+                        margin-top: 10px;
                     }
-                    @media print {
-                        .supplier-section { 
-                            page-break-after: always;
-                        }
-                        .product-row {
-                            break-inside: avoid;
-                            border: 1px solid #000;
-                        }
-                        .supplier-header {
-                            background: #f5f5f5 !important;
-                            -webkit-print-color-adjust: exact;
-                        }
-                    }
-                    
-                    .drag-container {
-                        cursor: move;
-                        position: relative;
-                        background: white;
-                        padding: 20px;
-                    }
-                    
-                    .drag-tip {
-                        position: fixed;
-                        top: 20px;
-                        right: 20px;
-                        background: #1976D2;
-                        color: white;
-                        padding: 8px 16px;
-                        border-radius: 4px;
-                        font-size: 14px;
-                        opacity: 0.9;
-                        z-index: 1000;
-                    }
-                    
-                    @media print {
-                        .drag-tip {
-                            display: none;
-                        }
+                    .size-item {
+                        background: #f0f0f0;
+                        padding: 4px 8px;
+                        border-radius: 3px;
+                        font-size: 13px;
                     }
                 </style>
             </head>
             <body>
-                <div class="drag-tip">拖拽或点击生成图片</div>
-                <div class="drag-container" id="dragContainer" draggable="true">
-                ${Object.entries(supplierOrders).map(([supplier, data], index) => `
-                    <div class="supplier-section" id="supplier-${index}" draggable="true">
-                        <div class="supplier-header">
-                            <span class="supplier-name">供应商：${supplier}</span>
-                            <span class="total-quantity">总数量：${data.totalQuantity}</span>
-                        </div>
-                        ${Object.values(data.products).map(product => {
-                            const sizeStr = Object.entries(product.sizes)
-                                .sort((a, b) => {
-                                    const numA = parseFloat(a[0]);
-                                    const numB = parseFloat(b[0]);
-                                    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-                                    return a[0].localeCompare(b[0]);
-                                })
-                                .map(([size, count]) => `${size}*${count}`)
-                                .join('，');
-                            
-                            return `
-                                <div class="product-row">
-                                    <img src="${product.imageUrl}" class="product-image" onerror="this.src='placeholder.png'">
-                                    <div class="product-info">
-                                        <div class="product-code">${product.code}</div>
-                                        <div class="product-name">${product.name || ''}</div>
-                                        <div class="size-info">${sizeStr}</div>
-                                        <div class="quantity">${product.total}</div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `).join('')}
-                <div class="total-row">
-                    <span>总数量：${totalAllQuantity}</span>
-                </div>
-                </div>
-                
-                <script>
-                    document.querySelectorAll('.supplier-section').forEach(section => {
-                        section.addEventListener('dragstart', async function(e) {
-                            const canvas = await html2canvas(this, {
-                                backgroundColor: 'white',
-                                scale: 2,
-                                useCORS: true,
-                                logging: false
-                            });
-                            
-                            canvas.toBlob(blob => {
-                                const item = new ClipboardItem({ "image/png": blob });
-                                navigator.clipboard.write([item]);
-                                
-                                const img = canvas.toDataURL('image/png');
-                                e.dataTransfer.setData('text/html', img);
-                                e.dataTransfer.setData('text/plain', img);
-                                
-                                const dragImage = new Image();
-                                dragImage.src = img;
-                                e.dataTransfer.setDragImage(dragImage, 0, 0);
-                            });
-                        });
-                        
-                        section.addEventListener('click', async function() {
-                            const canvas = await html2canvas(this, {
-                                backgroundColor: 'white',
-                                scale: 2,
-                                useCORS: true,
-                                logging: false
-                            });
-                            
-                            canvas.toBlob(blob => {
-                                const item = new ClipboardItem({ "image/png": blob });
-                                navigator.clipboard.write([item]).then(() => {
-                                    alert('已复制到剪贴板');
-                                });
-                            });
-                        });
-                    });
-                </script>
+                ${await generateSupplierOrderHTML(filteredOrders)}
             </body>
             </html>
         `;
@@ -2546,6 +2343,387 @@ function updateSupplierNav() {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    // 修改生成供应商报货表HTML的函数，添加双击和拖拽功能
+    async function generateSupplierOrderHTML(filteredOrders) {
+        let html = '';
+        let totalAllQuantity = 0;
+        const supplierOrders = {};
+
+        // 按供应商分组订单
+        for (const order of filteredOrders) {
+            if (!order.supplier) continue;
+            
+            if (!supplierOrders[order.supplier]) {
+                supplierOrders[order.supplier] = new Map();
+            }
+            
+            const productKey = order.code;
+            if (!supplierOrders[order.supplier].has(productKey)) {
+                supplierOrders[order.supplier].set(productKey, {
+                    code: order.code,
+                    name: order.name,
+                    sizes: new Map(),
+                    total: 0,
+                    image: null
+                });
+            }
+            
+            const product = supplierOrders[order.supplier].get(productKey);
+            const size = order.size || '无尺码';
+            const quantity = parseInt(order.quantity) || 0;
+            
+            if (!product.sizes.has(size)) {
+                product.sizes.set(size, 0);
+            }
+            product.sizes.set(size, product.sizes.get(size) + quantity);
+            product.total += quantity;
+            totalAllQuantity += quantity;
+
+                // 获取商品图片
+            if (!product.image) {
+                try {
+                    const imageData = await getImageFromDB(order.code, order.supplier);
+                    product.image = imageData?.file || null;
+                } catch (error) {
+                    console.error('获取图片失败:', error);
+                }
+            }
+        }
+
+        // 生成HTML
+        html = `
+            <div class="report-header">
+                <div class="total-info">
+                    <span>供应商：${Object.keys(supplierOrders).length}</span>
+                    <span>总数量：${totalAllQuantity}</span>
+                </div>
+            </div>
+        `;
+
+        // 按供应商生成商品列表
+        for (const [supplier, products] of Object.entries(supplierOrders)) {
+            // 计算该供应商的总数量
+            let supplierTotal = 0;
+            for (const [_, product] of products) {
+                supplierTotal += product.total;
+            }
+
+            html += `
+                <div class="supplier-section" id="supplier-${supplier.replace(/\s+/g, '-')}"
+                     draggable="true" 
+                     ondragstart="handleDragStart(event, 'supplier-${supplier.replace(/\s+/g, '-')}')"
+                     ondblclick="copySupplierToClipboard('supplier-${supplier.replace(/\s+/g, '-')}')">
+                    <div class="supplier-header">
+                        <div class="supplier-info">
+                            <h3>${supplier}</h3>
+                            <span class="supplier-total">总数量：${supplierTotal}</span>
+                        </div>
+                    </div>
+                    <div class="product-list">
+            `;
+
+            // 遍历供应商的所有商品
+            for (const [_, product] of products) {
+                const sizes = Array.from(product.sizes.entries())
+                    .sort((a, b) => {
+                        const sizeA = parseInt(a[0]) || 0;
+                        const sizeB = parseInt(b[0]) || 0;
+                        return sizeA - sizeB;
+                });
+
+                html += `
+                    <div class="product-row">
+                        <div class="product-image">
+                            <img src="${product.image || 'placeholder.png'}" 
+                                 onerror="this.src='placeholder.png'"
+                                 alt="${product.code}">
+                        </div>
+                        <div class="product-info">
+                    <div class="product-code">
+                        <div class="code">${product.code}</div>
+                        <div class="name">${product.name || '-'}</div>
+                    </div>
+                            <div class="product-sizes">
+                                ${sizes.map(([size, qty]) => `${size}*${qty}`).join('，')}
+                            </div>
+                            <div class="product-total">总数：${product.total}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        // 修改商品行的HTML结构和样式
+        html = `
+            <style>
+                .report-header {
+                margin-bottom: 20px; 
+                    padding: 10px;
+                    background: #f5f5f5;
+                }
+                .total-info {
+                display: flex;
+                justify-content: space-between;
+                    font-size: 14px;
+                }
+                .supplier-section {
+                    margin-bottom: 30px;
+                }
+                .supplier-header {
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #f5f5f5;
+                    border-radius: 4px;
+                }
+                .supplier-info {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .supplier-info h3 {
+                    margin: 0;
+                    font-size: 18px;
+                }
+                .supplier-total {
+                    background: #1976D2;
+                    color: white;
+                    padding: 4px 12px;
+                    border-radius: 15px;
+                    font-size: 14px;
+                }
+                .product-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .product-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 20px;
+                    padding: 10px;
+                    border: 1px solid #eee;
+                    border-radius: 4px;
+                }
+                .product-image {
+                    width: 100px;
+                    height: 100px;
+                    flex-shrink: 0;
+                }
+                .product-image img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+                .product-info {
+                    flex: 1;
+                    display: grid;
+                    grid-template-columns: 150px 200px 1fr 100px;
+                    align-items: center;
+                    gap: 20px;
+                }
+                .product-code {
+                    font-weight: bold;
+                    font-size: 15px;
+                    color: #1976D2;
+                }
+                .product-name {
+                    font-weight: bold;
+                    font-size: 15px;
+                    color: #333;
+                }
+                .product-sizes {
+                    color: #333;
+                    font-weight: bold;
+                    font-size: 15px;
+                }
+                .product-total {
+                    color: #f44336;
+                    font-weight: bold;
+                    text-align: right;
+                    font-size: 15px;
+                }
+                .supplier-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: #f5f5f5;
+                    border-radius: 4px;
+                }
+                .export-image-btn {
+                    background: #4CAF50;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: background 0.3s;
+                }
+                .export-image-btn:hover {
+                    background: #388E3C;
+                }
+            </style>
+        ` + html;
+
+        // 添加 html2canvas 库
+        html = `
+            <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+        ` + html;
+
+        // 添加导出图片功能的脚本
+        html = `
+            <script>
+                async function exportSupplierAsImage(supplierId) {
+                    const supplierSection = document.getElementById(supplierId);
+                    if (!supplierSection) return;
+
+                    try {
+                        // 创建加载提示
+                        const loadingDiv = document.createElement('div');
+                        loadingDiv.style.position = 'fixed';
+                        loadingDiv.style.top = '50%';
+                        loadingDiv.style.left = '50%';
+                        loadingDiv.style.transform = 'translate(-50%, -50%)';
+                        loadingDiv.style.background = 'rgba(0,0,0,0.8)';
+                        loadingDiv.style.color = 'white';
+                        loadingDiv.style.padding = '20px';
+                        loadingDiv.style.borderRadius = '8px';
+                        loadingDiv.textContent = '正在生成图片...';
+                        document.body.appendChild(loadingDiv);
+
+                        // 使用 html2canvas 将区域转换为图片
+                        const canvas = await html2canvas(supplierSection, {
+                            scale: 2, // 提高图片质量
+                            useCORS: true, // 允许加载跨域图片
+                            logging: false, // 关闭日志
+                            backgroundColor: '#ffffff' // 设置白色背景
+                        });
+
+                        // 将 canvas 转换为图片并下载
+                        const image = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = supplierId + '.png';
+                        link.href = image;
+                        link.click();
+
+                        // 移除加载提示
+                        document.body.removeChild(loadingDiv);
+                    } catch (error) {
+                        console.error('导出图片失败:', error);
+                        alert('导出图片失败: ' + error.message);
+                    }
+                }
+            </script>
+        ` + html;
+
+        // 添加拖拽和复制功能的脚本
+        html = `
+            <script>
+                // 处理拖拽开始事件
+                async function handleDragStart(event, supplierId) {
+                    const supplierSection = document.getElementById(supplierId);
+                    if (!supplierSection) return;
+
+                    try {
+                        // 使用 html2canvas 将区域转换为图片
+                        const canvas = await html2canvas(supplierSection, {
+                            scale: 2,
+                            useCORS: true,
+                            logging: false,
+                            backgroundColor: '#ffffff'
+                        });
+
+                        // 转换为 blob
+                        canvas.toBlob(blob => {
+                            const item = new ClipboardItem({ "image/png": blob });
+                            event.dataTransfer.setData('text/plain', ''); // 必需的
+                            event.dataTransfer.setData('text/html', supplierSection.outerHTML);
+                            event.dataTransfer.setDragImage(canvas, 0, 0);
+                            
+                            // 添加图片文件到拖拽数据
+                            const file = new File([blob], supplierId + '.png', { type: 'image/png' });
+                            event.dataTransfer.items.add(file);
+                        });
+                    } catch (error) {
+                        console.error('拖拽初始化失败:', error);
+                    }
+                }
+
+                // 处理双击复制事件
+                async function copySupplierToClipboard(supplierId) {
+                    const supplierSection = document.getElementById(supplierId);
+                    if (!supplierSection) return;
+
+                    try {
+                        // 创建加载提示
+                        const loadingDiv = document.createElement('div');
+                        loadingDiv.style.position = 'fixed';
+                        loadingDiv.style.top = '50%';
+                        loadingDiv.style.left = '50%';
+                        loadingDiv.style.transform = 'translate(-50%, -50%)';
+                        loadingDiv.style.background = 'rgba(0,0,0,0.8)';
+                        loadingDiv.style.color = 'white';
+                        loadingDiv.style.padding = '20px';
+                        loadingDiv.style.borderRadius = '8px';
+                        loadingDiv.textContent = '正在复制...';
+                        document.body.appendChild(loadingDiv);
+
+                        // 转换为图片
+                        const canvas = await html2canvas(supplierSection, {
+                            scale: 2,
+                            useCORS: true,
+                            logging: false,
+                            backgroundColor: '#ffffff'
+                        });
+
+                        // 转换为 blob 并复制到剪贴板
+                        canvas.toBlob(async blob => {
+                            try {
+                                const item = new ClipboardItem({ "image/png": blob });
+                                await navigator.clipboard.write([item]);
+                                loadingDiv.textContent = '复制成功！';
+                                setTimeout(() => document.body.removeChild(loadingDiv), 1000);
+                            } catch (error) {
+                                console.error('复制到剪贴板失败:', error);
+                                loadingDiv.textContent = '复制失败: ' + error.message;
+                                setTimeout(() => document.body.removeChild(loadingDiv), 2000);
+                            }
+                        });
+                    } catch (error) {
+                        console.error('复制失败:', error);
+                        alert('复制失败: ' + error.message);
+                    }
+                }
+            </script>
+        ` + html;
+
+        // 修改样式，添加拖拽相关样式
+        html = `
+            <style>
+                /* ... 其他样式保持不变 ... */
+                .supplier-section {
+                    cursor: move;
+                    user-select: none;
+                    transition: transform 0.2s;
+                }
+                .supplier-section:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                /* ... 其他样式保持不变 ... */
+            </style>
+        ` + html;
+
+        return html;
     }
 
     // 修改图片预览功能
@@ -2610,13 +2788,13 @@ function updateSupplierNav() {
         document.getElementById('orderSupplier').value = product.supplier || '';
         document.getElementById('orderCost').value = product.cost || '';
         document.getElementById('orderPrice').value = product.price || '';
-        document.getElementById('orderCustomer').value = order.customer;
-        document.getElementById('orderSize').value = order.size;
-        document.getElementById('orderQuantity').value = order.quantity;
-        document.getElementById('orderRemark').value = order.remark;
-
-        // 添加编辑标记
-        document.getElementById('createOrderForm').dataset.editId = orderId;
+        document.getElementById('orderSize').value = '';  // 始终设置为空
+        
+        // 聚焦到尺码输入框
+        document.getElementById('orderSize').focus();
+        
+        // 显示表单
+        orderForm.style.display = 'block';
     }
 
     // 修改关闭开单表单函数
@@ -2696,7 +2874,7 @@ function updateSupplierNav() {
             // ... 其他初始化代 ...
         } catch (error) {
             console.error('系统初始化失败:', error);
-            alert('系统初始化失败，请查看控制台了解详细信息');
+            alert('系统初始��失败，请查看控制台了解详细信息');
         }
     });
 
@@ -2705,7 +2883,7 @@ function updateSupplierNav() {
         const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
         const recentOrdersList = document.getElementById('recentOrdersList');
         
-        // 获取最近的10个订单
+        // 获���最近的10个订单
         const recentOrders = Object.values(orderData)
             .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
             .slice(0, 10);
@@ -2770,9 +2948,27 @@ function updateSupplierNav() {
                 
                 localStorage.setItem('orderData', JSON.stringify(orderData));
                 
-                // 通知父窗口更新
+                // 更新当前页面的最近订单显示
+                updateRecentOrders();
+                
+                // 如果是在全部订单页面中
                 if (window.opener && !window.opener.closed) {
+                    // 通知父窗口更新
                     window.opener.updateRecentOrders();
+                } else {
+                    // 如果是在主窗口中
+                    // 通知所有打开的全部订单页面更新
+                    const allWindows = window.opener ? [window.opener] : window.openedWindows || [];
+                    allWindows.forEach(win => {
+                        if (!win.closed) {
+                            try {
+                                // 尝试刷新全部订单页面
+                                win.location.reload();
+                            } catch (e) {
+                                console.error('无法更新子窗口:', e);
+                            }
+                        }
+                    });
                 }
             }
         } catch (error) {
@@ -2797,7 +2993,7 @@ function updateSupplierNav() {
                 orderDate.setHours(0, 0, 0, 0);
                 return orderDate >= dayStart && orderDate < dayEnd;
             })
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));  // 正确的写法
 
         if (orders.length === 0) {
             alert(`${exportDate} 没有订单记录`);
@@ -2895,7 +3091,7 @@ function updateSupplierNav() {
                     .delete-btn:hover {
                         background: #cc0000;
                     }
-                    /* 添加可���辑元素的样式 */
+                    /* 添加可编辑元素的样式 */
                     .editable {
                         cursor: text;
                         padding: 2px 4px;
@@ -2911,7 +3107,7 @@ function updateSupplierNav() {
                         outline-offset: -2px;
                     }
 
-                    /* 添加选择框样式 */
+                    /* 添加选择��样式 */
                     .select-checkbox {
                         width: 18px;
                         height: 18px;
@@ -2973,7 +3169,7 @@ function updateSupplierNav() {
 
                     function deleteOrder(orderId) {
                         if (confirm('确定要删除这条订单记录吗？')) {
-                            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}'));
+                            const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
                             delete orderData[orderId];
                             localStorage.setItem('orderData', JSON.stringify(orderData));
                             
@@ -2989,7 +3185,7 @@ function updateSupplierNav() {
 
                     // 添加更新订单字段的函数
                     function updateOrderField(orderId, field, value) {
-                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}'));
+                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
                         if (orderData[orderId]) {
                             if (field === 'price') {
                                 value = value.replace('¥', '').trim();
@@ -3054,7 +3250,7 @@ function updateSupplierNav() {
                             return;
                         }
 
-                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}'));
+                        const orderData = JSON.parse(localStorage.getItem('orderData') || '{}');
                         selectedOrders.forEach(orderId => {
                             delete orderData[orderId];
                         });
@@ -3610,7 +3806,7 @@ function updateSupplierNav() {
         `).join('');
     }
 
-    // 添加显示放大图���的函数
+    // 添加显示放大图片的函数
     function showZoomedImage(imageUrl) {
         const container = document.getElementById('zoomedImageContainer');
         const zoomedImage = document.getElementById('zoomedImage');
@@ -3620,14 +3816,14 @@ function updateSupplierNav() {
         document.body.style.overflow = 'hidden'; // 防止背景滚动
     }
 
-    // 添加关闭放大图片的函数
+    // ��加关闭放大图片的函数
     function closeZoomedImage() {
         const container = document.getElementById('zoomedImageContainer');
         container.style.display = 'none';
-        document.body.style.overflow = ''; // ���复背��滚动
+        document.body.style.overflow = ''; // ���复背景滚动
     }
 
-    // 添加点击背景关闭放大图片的��能
+    // 添加点击背景关闭放大图片的功能
     document.getElementById('zoomedImageContainer').addEventListener('click', function(event) {
         if (event.target === this) {
             closeZoomedImage();
@@ -3640,35 +3836,4 @@ function updateSupplierNav() {
             closeZoomedImage();
         }
     });
-
-    // 获取所有本地数据
-    function getAllLocalData() {
-        return {
-            products: JSON.parse(localStorage.getItem('products') || '{}'),
-            orders: JSON.parse(localStorage.getItem('orders') || '{}')
-        };
-    }
-
-    // 更新本地数据
-    function updateLocalData(data) {
-        if (data.products) {
-            localStorage.setItem('products', JSON.stringify(data.products));
-        }
-        if (data.orders) {
-            localStorage.setItem('orders', JSON.stringify(data.orders));
-        }
-    }
-
-    // 清除本地数据
-    function clearLocalData() {
-        localStorage.clear();
-        location.reload();
-    }
-
-    // 刷新显示
-    function refreshDisplay() {
-        // 重新加载图片网格
-        loadImageGrid();
-        // 更新其他需要刷新的UI元素
-    }
  

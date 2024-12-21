@@ -893,7 +893,7 @@
             background-color: #1976D2;
         }
 
-        /* 修改批量操作样式 */
+        /* 修改批量操作栏样式 */
         .batch-actions {
             gap: 15px;
         }
@@ -1498,7 +1498,7 @@
             width: 100px;
         }
 
-        /* 商品名称、供应商、客户备货使用自适应宽度 */
+        /* 商品名称、供应商、客户、备货使用自适应宽度 */
         #orderForm input#orderName,
         #orderForm input#orderSupplier,
         #orderForm input#orderCustomer,
@@ -1666,163 +1666,10 @@
         #orderPrice:hover {
             border-color: #1976D2;
         }
-
-        .login-form {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-            width: 320px;
-            z-index: 2000;
-        }
-
-        .login-form .form-header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .login-form .form-header h3 {
-            color: #333;
-            font-size: 24px;
-            margin: 0;
-        }
-
-        .login-form input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .login-form input:focus {
-            border-color: #2196F3;
-            outline: none;
-        }
-
-        .login-form button {
-            width: 100%;
-            padding: 12px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
-            transition: background 0.3s;
-        }
-
-        .login-form button:hover {
-            background: #1976D2;
-        }
-
-        /* 添加登录状态提示样式 */
-        .login-status {
-            text-align: center;
-            margin-top: 10px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        /* 更新用户信息显示样式 */
-        .user-info {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            z-index: 1000;
-        }
-
-        .user-info span {
-            color: #333;
-            font-weight: 500;
-        }
-
-        .user-info button {
-            padding: 8px 15px;
-            background: #f44336;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
-        }
-
-        .user-info button:hover {
-            background: #d32f2f;
-        }
-
-        .sync-status-indicator {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 8px 16px;
-            background: #4CAF50;
-            color: white;
-            border-radius: 20px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            z-index: 1000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .sync-status-indicator.offline {
-            background: #f44336;
-        }
-
-        .sync-status-indicator .dot {
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-        }
-
-        .sync-status-indicator.syncing .dot {
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
     </style>
 </head>
 <body>
-    <div class="login-form" id="loginForm">
-        <div class="form-header">
-            <h3>商品管理系统</h3>
-        </div>
-        <form id="userLoginForm">
-            <input type="email" id="username" placeholder="请输入邮箱" required>
-            <input type="password" id="password" placeholder="请输入密码" required>
-            <button type="submit">登录</button>
-        </form>
-        <div class="login-status" id="loginStatus"></div>
-    </div>
-
-    <div class="user-info" id="userInfo" style="display: none;">
-        <span id="currentUser"></span>
-        <button onclick="logout()">退出登录</button>
-    </div>
-
-    <div class="container" style="display: none;">
+    <div class="container">
         <h1>商品图片批量上传系统</h1>
         
         <div class="controls">
@@ -1830,7 +1677,7 @@
                 <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
                 <button onclick="document.getElementById('excelFile').click()" class="import-btn">导入Excel</button>
                 <input type="file" id="folderInput" webkitdirectory directory multiple style="display: none;">
-                <button onclick="document.getElementById('folderInput').click()" class="import-btn">关联片文件夹</button>
+                <button onclick="document.getElementById('folderInput').click()" class="import-btn">关联图片文件夹</button>
                 <input type="date" id="exportDate" style="padding: 8px; margin-right: 5px;" value="">
                 <button onclick="exportData()" class="export-btn">导出订单</button>
                 <button onclick="exportSupplierStats()" class="export-btn">导出统计</button>
@@ -1845,10 +1692,6 @@
                 </button>
                 <input type="file" id="orderExcelFile" accept=".xlsx,.xls" style="display: none;">
                 <button onclick="document.getElementById('orderExcelFile').click()" class="import-btn">导入订单</button>
-                <button onclick="exportAllData()" class="export-btn">导出数据备份</button>
-                <input type="file" id="importDataFile" accept=".json" style="display: none;">
-                <button onclick="document.getElementById('importDataFile').click()" class="import-btn">导入数据备份</button>
-                <button onclick="showDataStats()" class="stats-btn">查看数据统计</button>
             </div>
         </div>
 
@@ -1892,7 +1735,7 @@
                 <img id="newItemPreview" src="" alt="商品图片预览" style="max-width: 200px; max-height: 200px; display: none;">
                 <input type="file" id="newItemImage" accept="image/*" style="display: none;">
                 <button type="button" class="upload-btn" onclick="document.getElementById('newItemImage').click()">
-                    选择图
+                    选择图片
                 </button>
             </div>
             <label>商品编码：
@@ -2043,11 +1886,18 @@
         <img class="zoomed-image" id="zoomedImage" src="" alt="放大图片">
     </div>
 
-    <div class="sync-status-indicator" id="syncStatus">
-        <div class="dot"></div>
-        <span>已连接</span>
-    </div>
-
-    <script src="auth.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // 添加滚动监听，控返回顶部按钮显示
+        window.addEventListener('scroll', () => {
+            const scrollTop = document.getElementById('scrollTop');
+            if (window.scrollY > 300) {
+                scrollTop.classList.add('visible');
+            } else {
+                scrollTop.classList.remove('visible');
+            }
+        });
+    </script>
 </body>
 </html> 
